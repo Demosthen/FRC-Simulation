@@ -1,0 +1,105 @@
+<?xml version="1.0" standalone="no"?>
+<!-- Exported at 6/14/2018 12:43:20 PM -->
+<robot name="HuboPlus">
+  <link name="Frame:1">
+    <inertial>
+      <mass value="107.658323015859" />
+      <inertia ixx="87140.390719964" ixy="22262.5903574481" ixz="-5.96046447753906E-11" iyy="74808.3948042817" iyz="-2.38418579101563E-10" izz="57763.5200088788" />
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://HuboPlus/Frame.stl" scale="1" />
+      </geometry>
+    </visual>
+  </link>
+  <link name="Shaft:1">
+    <inertial>
+      <mass value="0.102962959752616" />
+      <inertia ixx="56.6952502318458" ixy="-3.95579263567925E-10" ixz="-4.65661287307739E-13" iyy="56.6952502344172" iyz="2.3283064365387E-13" izz="0.0207586183738895" />
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://HuboPlus/Shaft.stl" scale="1" />
+      </geometry>
+    </visual>
+  </link>
+  <link name="Shaft:2">
+    <inertial>
+      <mass value="0.102962959752616" />
+      <inertia ixx="56.6952502344758" ixy="6.03904481977224E-13" ixz="0" iyy="56.6952502317852" iyz="-1.16415321826935E-13" izz="0.0207586183739768" />
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://HuboPlus/Shaft.stl" scale="1" />
+      </geometry>
+    </visual>
+  </link>
+  <link name="Wheel:1">
+    <inertial>
+      <mass value="0.202708327012945" />
+      <inertia ixx="1.43720997091383" ixy="1.71442050486803E-07" ixz="0" iyy="1.4372099823351" iyz="0" izz="2.65645444615604" />
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://HuboPlus/Wheel.stl" scale="1" />
+      </geometry>
+    </visual>
+  </link>
+  <link name="Wheel:2">
+    <inertial>
+      <mass value="0.202708327012945" />
+      <inertia ixx="1.43720994731039" ixy="1.69013859704137E-07" ixz="0" iyy="1.43721000593901" iyz="4.65661287307739E-13" izz="2.65645444615604" />
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://HuboPlus/Wheel.stl" scale="1" />
+      </geometry>
+    </visual>
+  </link>
+  <link name="Wheel:3">
+    <inertial>
+      <mass value="0.202708327012945" />
+      <inertia ixx="1.43720993499272" ixy="-1.66408208315261E-07" ixz="0" iyy="1.43721001825668" iyz="0" izz="2.65645444615633" />
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://HuboPlus/Wheel.stl" scale="1" />
+      </geometry>
+    </visual>
+  </link>
+  <link name="Wheel:4">
+    <inertial>
+      <mass value="0.202708327012945" />
+      <inertia ixx="1.43720980508765" ixy="0" ixz="0" iyy="1.43721014816174" iyz="0" izz="2.65645444615622" />
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://HuboPlus/Wheel.stl" scale="1" />
+      </geometry>
+    </visual>
+  </link>
+  <joint name="Cylindrical:1" type="continuous">
+    <parent link="Shaft:1" />
+    <child link="Frame:1" />
+  </joint>
+  <joint name="Cylindrical:2" type="continuous">
+    <parent link="Wheel:2" />
+    <child link="Shaft:1" />
+  </joint>
+  <joint name="Cylindrical:3" type="continuous">
+    <parent link="Shaft:2" />
+    <child link="Frame:1" />
+  </joint>
+  <joint name="Cylindrical:4" type="continuous">
+    <parent link="Wheel:3" />
+    <child link="Shaft:2" />
+  </joint>
+  <joint name="Cylindrical:5" type="continuous">
+    <parent link="Shaft:2" />
+    <child link="Wheel:4" />
+  </joint>
+  <joint name="Cylindrical:6" type="continuous">
+    <parent link="Shaft:1" />
+    <child link="Wheel:1" />
+  </joint>
+</robot>
