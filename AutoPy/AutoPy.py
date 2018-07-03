@@ -139,6 +139,8 @@ while running:
     clock.tick(30)#fps
     pygame.display.set_caption("fps: " + str(clock.get_fps()))
     #NOTES:
+    #test
     #shape_query(shape)[source] or collisionhandler for point assignment
+    #consolidate zones into default dict of coords
     #rename ScoreZone to Zone object later
     #better to undestimate visual field bc convnet can mislabel at edges
