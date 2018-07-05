@@ -9,34 +9,32 @@ import copy
 import ScoreZone
 class Retrievable(object):
     """Retrievable object (Power Cube, whiffle ball, etc), 3"""
-    def __init__(self, name, initPos, mass, width, length, radius = 0): # if num provided for radius, circle assumed
+    def __init__(self, name, initPos,scale, mass, width, length, radius = 0): # if num provided for radius, circle assumed
         self.name = name
         self.mass = mass
-        self.width=width
-        self.length = length
-        self.pos = initPos
-        self.radius = radius
-        self.pickupZone = ScoreZone.ScoreZone(0,copy.deepcopy(self.pos),0,radius = 1, type = "pickup")
-    def AddToSpace(self, space, scale):
-        self.width*=scale
-        self.length*=scale
-        self.radius *= scale
-        self.pos *= scale
-        points = [(-self.width/2, -self.length/2),(-self.width/2,self.length/2),(self.width/2,self.length/2),(self.width/2,-self.length/2)]
+        self.width = width * scale
+        self.length = length * scale
+        self.pos = initPos * scale
+        self.radius = radius * scale
+        self.scale = scale
+        vertices = [(-self.width/2, -self.length/2),(-self.width/2,self.length/2),(self.width/2,self.length/2),(self.width/2,-self.length/2)]
         if self.radius > 0:
             self.inertia = pymunk.moment_for_circle(self.mass,self.radius,self.radius)
             self.body = pymunk.Body(self.mass,self.inertia)
             self.shape = pymunk.Circle(self.body,self.radius)
         else:
-            self.inertia = pymunk.moment_for_poly(self.mass,points)
+            self.inertia = pymunk.moment_for_poly(self.mass,vertices)
             self.body = pymunk.Body(self.mass, self.inertia)
-            self.shape = pymunk.Poly(self.body, points)
+            self.shape = pymunk.Poly(self.body, vertices)
         self.body.position = self.pos
         self.shape.elasticity = 0.95
         self.shape.friction = 0.9
-        self.shape.filter = pymunk.ShapeFilter(categories = 3)
+        self.shape.collision_type = self.name
+        #self.shape.filter = pymunk.ShapeFilter(categories = 1)
         self.shape.color = pygame.color.THECOLORS["yellow"]
-        self.pickupZone.AddToSpace(space,scale)
+        self.pickupZone = ScoreZone.ScoreZone("Pickup",0,copy.deepcopy(self.pos),False, False, True,scale,radius = 1)
+    def AddToSpace(self, space):
+        self.pickupZone.AddToSpace(space)
         space.add(self.body, self.shape)
         self.pickupZone.Constrain(space, self.body)
 

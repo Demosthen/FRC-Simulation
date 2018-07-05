@@ -8,10 +8,11 @@ import math, sys, random
 import copy
 class VisualField(object):
     """Visual Field of a Bot, 2"""
-    def __init__(self, bot, width = 0, length = 0, radius = 0):# body of bot, not actual bot object
+    def __init__(self,name, bot, width = 0, length = 0, radius = 0):# body of bot, not actual bot object
         self.bot = bot
         self.width = width
         self.length = length
+        self.name = name
         self.radius = radius
     def AddToSpace(self, space, scale):
         self.width *= scale
@@ -24,8 +25,9 @@ class VisualField(object):
         else :
             self.shape = pymunk.Poly(self.body, self.vertices)
         self.shape._set_sensor(True)
+        self.shape.collision_type = self.name
         self.body.position = self.bot.position + (self.width/2, 0)
-        self.shape.filter = pymunk.ShapeFilter(categories = 2)
+        #self.shape.filter = pymunk.ShapeFilter(categories = 2)
         self.shape.color = pygame.color.THECOLORS["green"]
         self.pivotConstraint = pymunk.PivotJoint(self.bot, self.body, (0,0), (0,0))
         self.gearJoint = pymunk.GearJoint(self.bot, self.body,0 , 1)
