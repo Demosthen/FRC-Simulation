@@ -25,6 +25,9 @@
     <Compile Include="Bot.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Int.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Obstacle.py">
       <SubType>Code</SubType>
     </Compile>

@@ -4,6 +4,7 @@ from pygame.color import *
 import pymunk
 import pymunk.pygame_util
 from pymunk import Vec2d
+from collections import defaultdict
 import math, sys, random
 import VisualField
 class Bot(object):
@@ -11,7 +12,7 @@ class Bot(object):
     canPickup = False
     canScore = False
     rets = defaultdict(lambda:[])
-    def __init__(self,name,  pos, color, width= 2.5, length=2.5, mass = 120, maxForce = 50, maxTorque = 50): #force in lbs
+    def __init__(self,name,  pos, color, score,scale, width= 2.5, length=2.5, mass = 120, maxForce = 50, maxTorque = 50): #force in lbs
         self.name = name
         self.pPickUp = [] # probability of picking up retrievable
         self.tPickUp = [] # avg time spent picking up retrievable
@@ -21,37 +22,35 @@ class Bot(object):
         self.pScores = [] # probability of getting score at scorespots
         self.tScores = [] # avg time spent scoring at scorespot (seconds)
         self.stScores = [] # std dev of score time?
-        self.width = width
-        self.length = length
+        self.width = width * scale
+        self.length = length * scale
         self.mass=mass
-        self.pos = pos
+        self.pos = pos * scale
         self.hasCube = True
-        self.score = 0
-        self.force = maxForce
-        self.torque = maxTorque
+        self.score = score
+        self.force = maxForce * scale
+        self.torque = maxTorque * scale
         self.color = color
-        if color is "blue":
-            self.multiplier = -1
-        else:
-            self.multiplier = 1
-    def AddToSpace(self, scale, space):
-        self.width *= scale
-        self.length*=scale
-        self.force *=scale
+        self.scale = scale
         points = [(-self.width/2, -self.length/2),(-self.width/2,self.length/2),(self.width/2,self.length/2),(self.width/2,-self.length/2)]
         self.inertia = pymunk.moment_for_poly(self.mass,points)
         self.body = pymunk.Body(self.mass, self.inertia)
         self.body.position = self.pos
-        self.body.position *= scale
-        self.VisField = VisualField.VisualField("VisField",self.body, self.multiplier * 10, self.multiplier * 5)# make variables for vis field dims
         self.shape = pymunk.Poly(self.body,points)
         self.shape.elasticity = 0.95
         self.shape.friction = 1000
-        self.shape.collision_type = self.name
-        #self.shape.filter = pymunk.ShapeFilter(categories = 1)
         self.shape.color = pygame.color.THECOLORS[self.color]
+        if color is "blue":
+            self.multiplier = -1
+        else:
+            self.multiplier = 1
+        self.VisField = VisualField.VisualField("VisField",self.body,scale,  self.multiplier * 10, self.multiplier * 5)# make variables for vis field dims
+    def AddToSpace(self, space, key):
+        #self.shape.filter = pymunk.ShapeFilter(categories = 1)
+        self.key = key
+        self.shape.collision_type = key[self.name]
         space.add(self.body, self.shape)
-        self.VisField.AddToSpace(space, scale)
+        self.VisField.AddToSpace(space, key)
     def Randomize(self, numRet, numScore):#num types of retrievable not num of retrievables
         for i in range(numRet):
             pPickUp.append(random.uniform(0,1))
@@ -62,32 +61,37 @@ class Bot(object):
             pScores.append(round(temp) * temp)# >= 0.5 or = 0
             tScores.append(random.uniform(1,5))
             stScores.append(random.uniform(1,2))
-
-    def GetScores(self, scoreList):
-        scores = scoreList;
+    def GetScores(self, scoreDict):
+        scores = scoreDict
     def CheckInFront(self, space):#tested
         """check which shapes overlap w/ visual field, output shape[0] and contact point set[1]"""
         return space.shape_query(self.VisField.shape)
     def CheckState(self, space):# untested but prob works
         """check which shapes overlap with self"""
         return space.shape_query(self.shape)
+    def GetClosestRet(self, space, objects):
+        shape_list = space.shape_query(self.shape)
+        for shape in shape_list:
+            if objects[shape[0]._get_shapeid()].name == CUBE_NAME:
+                return objects[shape[0]._get_shapeid()]
     def PickUp(self, space, retrievable):# tested
-        #TODO: 'remove' function in retrievable and set maxpickup
+        #TODO: set maxpickup
         # query space for pickup zone
-        self.hasCube = True
-        space.remove(retrievable.body, retrievable.shape)
-        retrievable.body.position = self.body.position
-        self.rets[retrievable.name] = retrievable
+        if self.canPickup:
+            self.hasCube = True
+            retrievable.Remove(space)
+            retrievable.body.position = self.body.position
+            self.rets[retrievable.name].append(retrievable)
     def DropOff(self, space, retrievable, zone = None):# untested
         #do stuff
         self.hasCube = False
-        self.rets.remove(retrievable)
-        if zone !=None:
+        self.rets[retrievable.name].remove(retrievable)
+        if zone !=None and self.canScore:
             if retrievable.name in zone.retKey:
-                zone.GetRet(space, self)
+                zone.GetRet(space, self, retrievable)
         else:
             retrievable.body.position = self.body.position
-            space.add(retrievable.body, retrievable.shape)
+            retrievable.AddToSpace(space, self.key)
     def Penalize(self, space, zones):
         #do stuff
         hi
@@ -99,7 +103,7 @@ class Bot(object):
         self.body.apply_force_at_local_point((proportion * self.torque,-proportion * self.torque), (self.width/2, self.length/2))
     def Forward(self, proportion):#tested
         self.body.apply_force_at_local_point((proportion * self.force,0), (-self.width/2, 0))
-    def BackWard(self, proportion):#tested
+    def Backward(self, proportion):#tested
         self.body.apply_force_at_local_point((-proportion * self.force,0), (self.width/2, 0))
     def TakeAction(self, space, bots, zones, retrievables, obstacles):
 

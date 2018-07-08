@@ -29,12 +29,15 @@ class Retrievable(object):
         self.body.position = self.pos
         self.shape.elasticity = 0.95
         self.shape.friction = 0.9
-        self.shape.collision_type = self.name
+        
         #self.shape.filter = pymunk.ShapeFilter(categories = 1)
         self.shape.color = pygame.color.THECOLORS["yellow"]
-        self.pickupZone = ScoreZone.ScoreZone("Pickup",0,copy.deepcopy(self.pos),False, False, True,scale,radius = 1)
-    def AddToSpace(self, space):
-        self.pickupZone.AddToSpace(space)
+        self.pickupZone = ScoreZone.ScoreZone("Pickup",0,copy.deepcopy(self.pos),False, False, True,scale = scale,radius = 1)
+    def AddToSpace(self, space, key):
+        self.pickupZone.AddToSpace(space, key)
+        self.shape.collision_type = key[self.name]
         space.add(self.body, self.shape)
         self.pickupZone.Constrain(space, self.body)
-
+    def Remove(self, space):
+        space.remove(self.body,self.shape)
+        space.remove(self.pickupZone.body, self.pickupZone.shape)

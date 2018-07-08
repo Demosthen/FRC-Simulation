@@ -8,16 +8,14 @@ import math, sys, random
 import copy
 class VisualField(object):
     """Visual Field of a Bot, 2"""
-    def __init__(self,name, bot, width = 0, length = 0, radius = 0):# body of bot, not actual bot object
+    def __init__(self,name, bot, scale,width = 0, length = 0, radius = 0):# body of bot, not actual bot object
+        #set initial variables
         self.bot = bot
-        self.width = width
-        self.length = length
+        self.width = width * scale
+        self.length = length * scale
         self.name = name
-        self.radius = radius
-    def AddToSpace(self, space, scale):
-        self.width *= scale
-        self.length *= scale
-        self.radius *= scale
+        self.scale = scale
+        self.radius = radius * scale
         self.body = pymunk.Body(0.0001 , 0.0001)
         self.vertices = [(0, 0) , (self.width, self.length/2), (self.width, -self.length/2)]
         if self.radius != 0:
@@ -25,10 +23,12 @@ class VisualField(object):
         else :
             self.shape = pymunk.Poly(self.body, self.vertices)
         self.shape._set_sensor(True)
-        self.shape.collision_type = self.name
         self.body.position = self.bot.position + (self.width/2, 0)
         #self.shape.filter = pymunk.ShapeFilter(categories = 2)
         self.shape.color = pygame.color.THECOLORS["green"]
+    def AddToSpace(self, space, key):
+        self.shape.collision_type = key[self.name]
+        #constrain to bot's body
         self.pivotConstraint = pymunk.PivotJoint(self.bot, self.body, (0,0), (0,0))
         self.gearJoint = pymunk.GearJoint(self.bot, self.body,0 , 1)
         space.add(self.body,self.shape,  self.pivotConstraint, self.gearJoint)
