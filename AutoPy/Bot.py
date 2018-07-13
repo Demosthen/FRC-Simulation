@@ -74,7 +74,7 @@ class Bot(object):
         self.CapSpeed()
         # update with custom damping value
         Body.update_velocity(Body, gravity,self.damping, dt)
-        self.ApplyAngFriction(self.angFriction)
+        #self.ApplyAngFriction(self.angFriction)
         self.ApplyFriction(self.friction)
     def AddToSpace(self, space):
         if self.shape.space == None:
