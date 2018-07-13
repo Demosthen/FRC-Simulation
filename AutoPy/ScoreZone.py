@@ -6,13 +6,18 @@ import pymunk.pygame_util
 from collections import defaultdict
 from pymunk import Vec2d
 import math, sys, random
+from Global import *
+from Retrievable import Retrievable
+from Bot import Bot
 class ScoreZone(object):# rename to Zone object later
     """Score Zone (Penalty Zone if score is negative), 5"""
     inv = defaultdict(lambda:[])
     penaltyTime = 0
-    def __init__(self,name, score, pos, isScore, isPenalty, isPickup, color = "none", scale = 1 ,width=0, length=0, radius = 0, retKey = []):
+    inSpace = False
+    def __init__(self,name, score, pos, isScore, isPenalty, isPickup, color = "none", width=0, length=0, radius = 0, retKey = defaultdict()):
         self.score = score
         self.name = name
+        self.scale = scale
         self.width = width * scale
         self.length = length * scale
         self.radius = radius * scale
@@ -40,15 +45,25 @@ class ScoreZone(object):# rename to Zone object later
         else:
             self.body.body_type = pymunk.cp.CP_BODY_TYPE_STATIC
             self.shape.color = pygame.color.THECOLORS["purple"]
-    def AddToSpace(self, space, key):
-        self.shape.collision_type = key[self.name]
-        space.add(self.body, self.shape)
+        #put object into registry
+        objects[self.shape._get_shapeid()] = self
+        self.shape.collision_type = collision_types[self.name]
+    def AddToSpace(self, space):
+        if not self.inSpace:
+            space.add(self.body, self.shape)
+            self.inSpace = True
+
     def GetRet(self, space, bot, retrievable):
         self.inv[retrievable.name].append(retrievable)
         self.numRet += 1
+    def GiveRet(self, space, bot, retName):
+        newRet = Retrievable(retName, self.pos,3,1.083,1.083)
+        newRet.AddToSpace(space)
+        return newRet
     def GivePoints(self, space, bot,points):
         hi
     def Constrain(self, space, object):
-        constraint = pymunk.PivotJoint(self.body, object, (0,0), (0,0))
-        space.add(constraint)
+        objects[self.shape._get_shapeid()] = object
+        self.constraint = pymunk.PivotJoint(self.body, object.body, (0,0), (0,0))
+        space.add(self.constraint)
 

@@ -5,9 +5,10 @@ import pymunk
 import pymunk.pygame_util
 from pymunk import Vec2d
 import math, sys, random
+from Global import *
 class Obstacle(object):
     """immovable collidable obstacle, 4"""
-    def __init__(self,name,  pos, scale,  width, length, radius = 0):
+    def __init__(self,name,  pos, width, length, radius = 0):
         self.name = name
         self.pos = pos * scale
         self.width = width * scale
@@ -24,8 +25,10 @@ class Obstacle(object):
             self.shape = pymunk.Poly(self.body, self.vertices)
         #self.shape.filter = pymunk.ShapeFilter(categories = 1)
         self.shape.color = pygame.color.THECOLORS["gray"]
-    def AddToSpace(self, space, key):
-        self.shape.collision_type = key[self.name]
-        space.add(self.body, self.shape)
+        self.shape.collision_type = collision_types[self.name]
+        objects[self.shape._get_shapeid()] = self
+    def AddToSpace(self, space):
+        if self.shape.space == None:
+           space.add(self.body, self.shape)
 
 

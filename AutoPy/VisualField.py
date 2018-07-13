@@ -6,9 +6,10 @@ import pymunk.pygame_util
 from pymunk import Vec2d
 import math, sys, random
 import copy
+from Global import *
 class VisualField(object):
     """Visual Field of a Bot, 2"""
-    def __init__(self,name, bot, scale,width = 0, length = 0, radius = 0):# body of bot, not actual bot object
+    def __init__(self,name, bot, width = 0, length = 0, radius = 0):# body of bot, not actual bot object
         #set initial variables
         self.bot = bot
         self.width = width * scale
@@ -26,10 +27,12 @@ class VisualField(object):
         self.body.position = self.bot.position + (self.width/2, 0)
         #self.shape.filter = pymunk.ShapeFilter(categories = 2)
         self.shape.color = pygame.color.THECOLORS["green"]
-    def AddToSpace(self, space, key):
-        self.shape.collision_type = key[self.name]
-        #constrain to bot's body
-        self.pivotConstraint = pymunk.PivotJoint(self.bot, self.body, (0,0), (0,0))
-        self.gearJoint = pymunk.GearJoint(self.bot, self.body,0 , 1)
-        space.add(self.body,self.shape,  self.pivotConstraint, self.gearJoint)
+        objects[self.shape._get_shapeid()] = self
+        self.shape.collision_type = collision_types[self.name]
+    def AddToSpace(self, space):
+        if self.shape.space == None:
+            #constrain to bot's body
+            self.pivotConstraint = pymunk.PivotJoint(self.bot, self.body, (0,0), (0,0))
+            self.gearJoint = pymunk.GearJoint(self.bot, self.body,0 , 1)
+            space.add(self.body,self.shape,  self.pivotConstraint, self.gearJoint)
 

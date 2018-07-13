@@ -25,6 +25,9 @@
     <Compile Include="Bot.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Global.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Int.py">
       <SubType>Code</SubType>
     </Compile>
@@ -35,6 +38,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="ScoreZone.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Slope.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="VisualField.py">

@@ -7,9 +7,10 @@ from pymunk import Vec2d
 import math, sys, random
 import copy
 import ScoreZone
+from Global import *
 class Retrievable(object):
     """Retrievable object (Power Cube, whiffle ball, etc), 3"""
-    def __init__(self, name, initPos,scale, mass, width, length, radius = 0): # if num provided for radius, circle assumed
+    def __init__(self, name, initPos, mass, width, length, radius = 0): # if num provided for radius, circle assumed
         self.name = name
         self.mass = mass
         self.width = width * scale
@@ -29,15 +30,14 @@ class Retrievable(object):
         self.body.position = self.pos
         self.shape.elasticity = 0.95
         self.shape.friction = 0.9
-        
-        #self.shape.filter = pymunk.ShapeFilter(categories = 1)
         self.shape.color = pygame.color.THECOLORS["yellow"]
-        self.pickupZone = ScoreZone.ScoreZone("Pickup",0,copy.deepcopy(self.pos),False, False, True,scale = scale,radius = 1)
-    def AddToSpace(self, space, key):
-        self.pickupZone.AddToSpace(space, key)
-        self.shape.collision_type = key[self.name]
+        self.pickupZone = ScoreZone.ScoreZone("Pickup",0,copy.deepcopy(self.pos),False, False, True,radius = 1)
+        self.shape.collision_type = collision_types[self.name]
+        objects[self.shape._get_shapeid()] = self
+    def AddToSpace(self, space):
+        self.pickupZone.AddToSpace(space)
+        self.pickupZone.Constrain(space, self)
         space.add(self.body, self.shape)
-        self.pickupZone.Constrain(space, self.body)
     def Remove(self, space):
-        space.remove(self.body,self.shape)
-        space.remove(self.pickupZone.body, self.pickupZone.shape)
+        self.pickupZone.inSpace = False
+        space.remove(self.body,self.shape, self.pickupZone.body, self.pickupZone.shape, self.pickupZone.constraint)
