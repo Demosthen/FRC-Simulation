@@ -20,15 +20,32 @@
     <DebugSymbols>true</DebugSymbols>
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'test' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+    <OutputPath>bin\test\</OutputPath>
+  </PropertyGroup>
   <ItemGroup>
     <Compile Include="AutoPy.py" />
     <Compile Include="Bot.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="CollisionHandlers.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Context.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Field.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Global.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Int.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Network.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Obstacle.py">

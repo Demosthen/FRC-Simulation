@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<ProfilingTarget xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <ProjectTarget>
+    <TargetProject>86cd0f5f-7fcd-45e0-9a44-5d461716540d</TargetProject>
+    <FriendlyName>AutoPy</FriendlyName>
+  </ProjectTarget>
+  <Reports>
+    <Report>
+      <Filename>C:\Users\Austin\AppData\Local\Temp\AutoPy_20180808.vsp</Filename>
+    </Report>
+  </Reports>
+</ProfilingTarget>

@@ -8,13 +8,15 @@ from collections import defaultdict
 import math, sys, random
 import VisualField
 from Global import *
+from Network import Network as nw
+import multiprocessing as mp
 class Bot(object):
     """Robot Object, 1"""
-    canPickup = False
-    canScore = False
-    rets = defaultdict(lambda:[])
-    def __init__(self,name,  pos, color, score, width= 2.5, length=2.5, mass = 120, maxForce = 100, maxTorque = 50, maxSpeed = 15): #force in lbs
+   
+    staticInputSize = 6 # minimum size of input
+    def __init__(self, name, context,  pos, color, manager, width= 2.5, length=2.5, mass = 120, maxForce = 800, maxTorque = 50000, maxSpeed = 30, maxAngSpeed = 1): #force in lbs
         self.name = name
+        self.context = context
         self.pPickUp = dict.fromkeys(RET_NAMES) # probability of picking up retrievable
         self.tPickUp = dict.fromkeys(RET_NAMES) # avg time spent picking up retrievable
         self.maxPickUp = dict.fromkeys(RET_NAMES) # max # of rets in possession
@@ -23,64 +25,102 @@ class Bot(object):
         self.pScores = dict.fromkeys(SCORE_NAMES) # probability of getting score at scorespots
         self.tScores = dict.fromkeys(SCORE_NAMES) # avg time spent scoring at scorespot (seconds)
         self.stScores = dict.fromkeys(SCORE_NAMES) # std dev of score time?
-        self.width = width * scale
-        self.length = length * scale
+        self.width = width * SCALE
+        self.length = length * SCALE
         self.mass=mass
-        self.pos = pos * scale
-        self.maxSpeed = maxSpeed * scale
-        self.angFriction = 300
-        self.hasCube = True
-        self.score = score
-        self.force = maxForce * scale
-        self.torque = maxTorque * scale
+        self.pos = pos * SCALE
+        self.maxSpeed = maxSpeed * SCALE
+        self.maxAngSpeed = maxAngSpeed * SCALE
+        self.angFriction = maxTorque * SCALE * 9
+        self.maxForce = maxForce * SCALE
+        self.force = Vec2d(0,0)
+        self.maxTorque = maxTorque * SCALE
+        self.torque = 0
         self.color = color
-        self.scale = scale
+        self.scale = SCALE
+        # create body
         points = [(-self.width/2, -self.length/2),(-self.width/2,self.length/2),(self.width/2,self.length/2),(self.width/2,-self.length/2)]
         self.inertia = pymunk.moment_for_poly(self.mass,points)
         self.body = pymunk.Body(self.mass, self.inertia)
         self.body.position = self.pos
-        #self.body._set_velocity_func()
+        # setup control body
+        self.control = pymunk.Body(pymunk.inf, pymunk.inf, body_type = pymunk.cp.CP_BODY_TYPE_KINEMATIC)
+        self.control.position = self.body.position
+        self.controlPivot = pymunk.PivotJoint(self.body, self.control,(0,0),(0,0))
+        self.controlPivot.max_bias = 0
+        self.controlPivot.max_force = 100 * self.maxForce
+        self.controlGear = pymunk.GearJoint(self.body, self.control, 0, 1)
+        self.controlGear.max_bias = 0
+        self.controlGear.max_force = 250 * self.maxTorque
+        #create shape
         self.shape = pymunk.Poly(self.body,points)
         self.shape.elasticity = 0.95
         self.shape.friction = 1000
         self.shape.color = pygame.color.THECOLORS[self.color]
         if color is "blue":
+            self.score = self.context.blueScore
             self.multiplier = -1
         else:
+            self.score = self.context.redScore
             self.multiplier = 1
-        self.VisField = VisualField.VisualField("VisField",self.body,  self.multiplier * 10, self.multiplier * 5)# make variables for vis field dims
+        self.VisField = VisualField.VisualField("VisField",self.context,self.body,  self.multiplier * 10, self.multiplier * 15)# make variables for vis field dims
         self.shape.collision_type = collision_types[self.name]
-        objects[self.shape._get_shapeid()] = self
+        self.context.objects[self.shape._get_shapeid()] = self
         self.Randomize()
         self.damping = 1
-        self.friction = maxForce * 300
-        self.body.velocity_func = self.VelUpdate
+        self.friction = maxForce * SCALE * 6
+        self.canPickup = False
+        self.canScore = False
+        self.immobileTime = 0
+        self.inputs = []
+        self.actions = []
+        self.teamScores =[]
+        self.rets = defaultdict(lambda:[])
+        self.prev = 0 # team's score 1 second ago
+
     def KillLateralMvmt(self):
-            self.body.velocity -= self.body.velocity.projection(Vec2d(math.cos(self.body.angle), math.sin(self.body.angle)).perpendicular())
+            self.control.velocity -= self.body.velocity.projection(Vec2d(math.cos(self.body.angle), math.sin(self.body.angle)).perpendicular())
+    
     def ApplyFriction(self, friction):
         """insert force of friction"""
         force = -friction * self.body.velocity.normalized() * min(1.0, self.body.velocity.length * 2)
         self.body.apply_force_at_local_point(force,(0,0))
-    def ApplyAngFriction(self, angFriction):
-        if self.body.angular_velocity > 0:
-            self.TurnRight(angFriction)
-        elif self.body.angular_velocity < 0:
-            self.TurnLeft(angFriction)
+
     def CapSpeed(self):
-        self.body.velocity = self.body.velocity.normalized() * min(self.maxSpeed, self.body.velocity.length)
-    def VelUpdate(self, Body, gravity, damping, dt):
-        # kill lat mvmt to better simulate robot
+        self.control.velocity = self.control.velocity.normalized() * min(self.maxSpeed, self.control.velocity.length)
+
+    def CapAngSpeed(self):
+        self.control.angular_velocity = min(self.maxAngSpeed, abs(self.control.angular_velocity)) * ( 2 * int(self.control.angular_velocity > 0) - 1)
+
+    def ControlVelUpdate(self, dt):
+        accel = self.force / self.body.mass
+        self.control.velocity += accel * dt
+        fricDelta = dt * self.friction * self.control.velocity.normalized() / self.body.mass
+        if (self.control.velocity.length > fricDelta.length ):
+            self.control.velocity -= fricDelta
+        else:    
+            self.control.velocity = (0,0)
+        angAccel = self.torque / self.body.moment
+        self.control.angular_velocity += angAccel * dt
+        angFricDelta = dt * self.angFriction /(self.body.moment)
+        angFricDelta *= 2 * int(self.control.angular_velocity >= 0) - 1 # get sign
+        if (self.control.angular_velocity - angFricDelta >= 0) == (self.control.angular_velocity >= 0):
+            self.control.angular_velocity -= angFricDelta
+        else: 
+            self.control.angular_velocity = 0
         self.KillLateralMvmt()
         self.CapSpeed()
-        # update with custom damping value
-        Body.update_velocity(Body, gravity,self.damping, dt)
-        #self.ApplyAngFriction(self.angFriction)
-        self.ApplyFriction(self.friction)
-    def AddToSpace(self, space):
+        self.CapAngSpeed()
+        self.force = Vec2d(0,0)
+        self.torque = 0
+
+    def AddToSpace(self):
         if self.shape.space == None:
-            space.add(self.body, self.shape)
-            self.VisField.AddToSpace(space)
+            self.context.space.add(self.body, self.shape, self.controlGear, self.controlPivot, self.control)
+            self.VisField.AddToSpace()
+
     def Randomize(self):
+        """Set random parameters"""
         for key, ret in self.pPickUp.items():
             self.pPickUp[key] = random.uniform(0,1)
         for key, ret in self.tPickUp.items():
@@ -91,63 +131,147 @@ class Bot(object):
             temp = random.uniform(0,1)
             self.pScores[key] = round(temp) * temp# >=0.5 or = 0
         for key, ret in self.tScores.items():
-            self.tScores[key] = random.uniform(1,5)
+            self.tScores[key] = random.uniform(1,4)
         for key, ret in self.stScores.items():
             self.stScores[key] = random.uniform(1,2)
-    def GetScores(self, scoreDict):
-        scores = scoreDict
-    def CheckInFront(self, space):#tested
+        for key, ret in self.maxPickUp.items():
+            self.maxPickUp[key] = 1 #in the case of powerup
+
+    def CheckInFront(self):#tested
         """check which shapes overlap w/ visual field, output shape[0] and contact point set[1]"""
-        return space.shape_query(self.VisField.shape)
-    def CheckState(self, space):# untested but prob works
+        return self.context.space.shape_query(self.VisField.shape)
+
+    def CheckState(self):
+        # untested but prob works
         """check which shapes overlap with self"""
-        return space.shape_query(self.shape)
-    def GetClosestRet(self, space):
-        shape_list = space.shape_query(self.shape)
+        return self.context.space.shape_query(self.shape)
+
+    def GetClosestRet(self, retName = CUBE_NAME):
+        shape_list = self.context.space.shape_query(self.shape)
         for shape in shape_list:
-            if not shape == None and objects[shape[0]._get_shapeid()].name == CUBE_NAME:
-                return objects[shape[0]._get_shapeid()]
-            elif (not shape == None) and (objects[shape[0]._get_shapeid()].name == PICKUP_NAME or objects[shape[0]._get_shapeid()].name == VAULT_NAME):
-                return objects[shape[0]._get_shapeid()].GiveRet( space, self, CUBE_NAME)
+            if not shape == None and self.context.objects[shape[0]._get_shapeid()].name == retName:
+                return self.context.objects[shape[0]._get_shapeid()]
+            elif (not shape == None) and (self.context.objects[shape[0]._get_shapeid()].name == PICKUP_NAME or self.context.objects[shape[0]._get_shapeid()].name == VAULT_NAME):
+                return self.context.objects[shape[0]._get_shapeid()].GiveRet(self, retName)
         return None
-    def ScoreZoneCheck(self,space):
-        shape_list = space.shape_query(self.shape)
+
+    def ScoreZoneCheck(self):
+        shape_list = self.context.space.shape_query(self.shape)
         scoreZones = []
         for shape in shape_list:
-            if not shape[0] == None and type(objects[shape[0]._get_shapeid()]).__name__ == 'ScoreZone' and objects[shape[0]._get_shapeid()].isScore:
-                scoreZones.append(objects[shape[0]._get_shapeid()])
+            if not shape[0] == None and type(self.context.objects[shape[0]._get_shapeid()]).__name__ == 'ScoreZone' and self.context.objects[shape[0]._get_shapeid()].isScore:
+                scoreZones.append(self.context.objects[shape[0]._get_shapeid()])
         return scoreZones
-    def PickUp(self, space, retrievable):# tested
-        #TODO: set maxpickup
-        # query space for pickup zone
-        if self.canPickup:
-            self.hasCube = True
-            retrievable.Remove(space)
-            retrievable.body.position = self.body.position
-            self.rets[retrievable.name].append(retrievable)
-    def DropOff(self, space, retrievable, zone = None):# untested
-        #do stuff
-        self.hasCube = False
+
+    def PickUp(self, retrievable):# tested
+        if not retrievable == None and len(self.rets[retrievable.name]) < self.maxPickUp[retrievable.name] and self.canPickup and self.immobileTime<=0:
+            self.immobileTime = max(0, self.immobileTime + random.gauss(self.tPickUp[retrievable.name], self.stPickUp[retrievable.name]))
+            if random.random() <= self.pPickUp[retrievable.name]:
+                retrievable.Remove()
+                retrievable.body.position = self.body.position
+                self.rets[retrievable.name].append(retrievable)
+
+    def DropOff(self,  retrievable, zone = None):# tested
         self.rets[retrievable.name].remove(retrievable)
-        if zone !=None and self.canScore and zone.retKey[retrievable.name]:
-             zone.GetRet(space, self, retrievable)
+        if zone != None and self.canScore and zone.retKey[retrievable.name] and random.random() <= self.pScores[zone.name] and self.immobileTime <=0:
+             zone.GetRet(self, retrievable)
+             self.immobileTime = max(random.gauss(self.tScores[zone.name], self.stScores[zone.name]), 0)
         else:
             retrievable.body.position = self.body.position
-            retrievable.AddToSpace(space)
-    def Penalize(self, space, zones):
-        #do stuff
-        hi
+            retrievable.AddToSpace()
+
+    retActKey = [PickUp,# 0
+                 DropOff]# 1
+
     def TurnLeft(self, proportion):#tested
-        #TODO: Adjust torques
-        self.body.apply_force_at_local_point((-proportion * self.torque,proportion * self.torque), (self.width/2, self.length/2))
+        if self.immobileTime <= 0:
+            self.torque += proportion * self.maxTorque
+
     def TurnRight(self, proportion):#tested
-        #TODO: Adjust torques
-        self.body.apply_force_at_local_point((proportion * self.torque,-proportion * self.torque), (self.width/2, self.length/2))
+        if self.immobileTime <= 0:
+            self.torque -= proportion * self.maxTorque
+
     def Forward(self, proportion):#tested
-        self.body.apply_force_at_local_point((proportion * self.force,0), (-self.width/2, 0))
+        if self.immobileTime <= 0:
+            direction = Vec2d(1,1)
+            direction.angle = self.body.angle
+            direction = direction.normalized()
+            self.force += proportion * self.maxForce * direction
+
     def Backward(self, proportion):#tested
-        self.body.apply_force_at_local_point((-proportion * self.force,0), (self.width/2, 0))
-    def TakeAction(self, space, bots, zones, retrievables, obstacles):
+        if self.immobileTime <= 0:
+            direction = Vec2d(1,1)
+            direction.angle = self.body.angle
+            direction = -direction.normalized()
+            self.force += proportion * self.maxForce * direction
+
+    def Brake(self, proportion = 1): #tested
+        self.force = 0 
+        self.torque = 0
+        self.control.velocity = Vec2d(0,0)
+        self.control.angular_velocity = 0
+
+    mvmtKey = [Forward, # 0 
+            Backward, # 1
+            TurnRight, # 2
+            TurnLeft, # 3
+            Brake] # 4
+
+    def GetInput(self):
+        # get all objects in visual field
+        shapes = self.CheckInFront()
+        zones = self.CheckState()
+        # init with robot stats
+        inputList = [self.mass, self.maxForce, self.maxTorque, self.maxSpeed, self.body.angular_velocity]
+        inputList.extend(self.body.velocity)
+        # add num of each ret
+        for list in self.rets:
+            inputList.append(len(self.rets))
+        objectList = []
+        zoneList = []
+        # add objects in view (no zones)
+        for shape, contacts in shapes:
+            object = self.context.objects[shape._get_shapeid()]
+            if type(object).__name__ != 'ScoreZone' and object != None:
+                objectList.append(object)
+                inputList.append(collision_types[object.name])
+        # add zones it is in (may need to be removed)
+        #for shape, contacts in zones:
+        #    zone = objects[shape._get_shapeid()]
+        #    if type(object.__name__) == 'ScoreZone':
+        #        zoneList.append(zone)
+        #        inputList.append(collision_types[zone.name])
+        return inputList
+
+    def SaveInput(self):
+        botInput = self.GetInput()
+        origSize = len(botInput)
+        while len(botInput) < INPUT_SIZE:
+            botInput.append(0)
+        self.inputs.append(botInput)
+        return origSize
+
+    def SaveAction(self, action):
+        self.actions.append(action)
+
+    def SaveReward(self):# tested
+        """save net score gain as reward"""
+        self.teamScores.append(self.score.val - self.prev)
+        self.prev = self.score.val
+
+    def CalculateReward(self, timeStep):# tested
+        minTime = math.ceil(timeStep)
+        reward = 0
+        for i in range(minTime, len(self.teamScores)):
+            reward += pow(nw.DISCOUNT, i - minTime) * self.teamScores[i]
+        return reward
+
+    def AssignReward(self):# tested
+        self.rewards = []
+        for i in range(len(self.inputs)):
+            self.rewards.append(self.CalculateReward(i / NUM_STEPS))
+
+    def TakeAction(self, inputList, objectList):
 
         #insert neural net
         response = []

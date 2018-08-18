@@ -11,17 +11,15 @@ from Retrievable import Retrievable
 from Bot import Bot
 class ScoreZone(object):# rename to Zone object later
     """Score Zone (Penalty Zone if score is negative), 5"""
-    inv = defaultdict(lambda:[])
-    penaltyTime = 0
-    inSpace = False
-    def __init__(self,name, score, pos, isScore, isPenalty, isPickup, color = "none", width=0, length=0, radius = 0, retKey = defaultdict()):
-        self.score = score
+    
+    def __init__(self,name,context, pos, isScore, isPenalty, isPickup, color = "none", width=0, length=0, radius = 0, retKey = defaultdict()):
         self.name = name
-        self.scale = scale
-        self.width = width * scale
-        self.length = length * scale
-        self.radius = radius * scale
-        self.pos = pos * scale
+        self.context = context
+        self.scale = SCALE
+        self.width = width * SCALE
+        self.length = length * SCALE
+        self.radius = radius * SCALE
+        self.pos = pos * SCALE
         self.color = color
         self.numRet = 0
         self.retKey = retKey
@@ -45,25 +43,36 @@ class ScoreZone(object):# rename to Zone object later
         else:
             self.body.body_type = pymunk.cp.CP_BODY_TYPE_STATIC
             self.shape.color = pygame.color.THECOLORS["purple"]
+        if self.color == "red":
+            self.score = self.context.redScore
+        else:
+            self.score = self.context.blueScore
         #put object into registry
-        objects[self.shape._get_shapeid()] = self
+        self.context.objects[self.shape._get_shapeid()] = self
         self.shape.collision_type = collision_types[self.name]
-    def AddToSpace(self, space):
+        self.inv = defaultdict(lambda:[])
+        self.penaltyTime = 0
+        self.inSpace = False
+
+    def AddToSpace(self):
         if not self.inSpace:
-            space.add(self.body, self.shape)
+            self.context.space.add(self.body, self.shape)
             self.inSpace = True
 
-    def GetRet(self, space, bot, retrievable):
+    def GetRet(self, bot, retrievable):
         self.inv[retrievable.name].append(retrievable)
         self.numRet += 1
-    def GiveRet(self, space, bot, retName):
-        newRet = Retrievable(retName, self.pos,3,1.083,1.083)
-        newRet.AddToSpace(space)
+
+    def GiveRet(self, bot, retName):
+        newRet = Retrievable(retName,self.context, self.pos,3,1.083,1.083)
+        newRet.AddToSpace()
         return newRet
-    def GivePoints(self, space, bot,points):
+
+    def GivePoints(self, bot,points):
         hi
-    def Constrain(self, space, object):
-        objects[self.shape._get_shapeid()] = object
+
+    def Constrain(self, object):
+        self.context.objects[self.shape._get_shapeid()] = object
         self.constraint = pymunk.PivotJoint(self.body, object.body, (0,0), (0,0))
-        space.add(self.constraint)
+        self.context.space.add(self.constraint)
 
