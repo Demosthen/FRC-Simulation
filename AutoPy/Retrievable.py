@@ -44,3 +44,10 @@ class Retrievable(object):
     def Remove(self):
         self.pickupZone.inSpace = False
         self.context.space.remove(self.body,self.shape, self.pickupZone.body, self.pickupZone.shape, self.pickupZone.constraint)
+
+    def CleanUp(self):
+        self.context.objects.pop(self.shape._get_shapeid())
+        if self.pickupZone.inSpace:
+            self.pickupZone.CleanUp()
+            self.context.space.remove(self.body, self.shape)
+        del self.pickupZone

@@ -76,3 +76,7 @@ class ScoreZone(object):# rename to Zone object later
         self.constraint = pymunk.PivotJoint(self.body, object.body, (0,0), (0,0))
         self.context.space.add(self.constraint)
 
+    def CleanUp(self):
+        if self.name != CUBE_NAME:
+            self.context.objects.pop(self.shape._get_shapeid())
+        self.context.space.remove(self.body, self.shape, self.constraint)

@@ -38,3 +38,6 @@ class VisualField(object):
             self.gearJoint = pymunk.GearJoint(self.bot, self.body,0 , 1)
             self.context.space.add(self.body,self.shape,  self.pivotConstraint, self.gearJoint)
 
+    def CleanUp(self):
+        self.context.objects.pop(self.shape._get_shapeid())
+        self.context.space.remove(self.shape, self.body)

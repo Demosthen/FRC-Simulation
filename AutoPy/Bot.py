@@ -165,7 +165,9 @@ class Bot(object):
 
     def PickUp(self, retrievable):# tested
         if not retrievable == None and len(self.rets[retrievable.name]) < self.maxPickUp[retrievable.name] and self.canPickup and self.immobileTime<=0:
+            # make bot immobile for some time
             self.immobileTime = max(0, self.immobileTime + random.gauss(self.tPickUp[retrievable.name], self.stPickUp[retrievable.name]))
+            # if bot is lucky it will pick up the thing
             if random.random() <= self.pPickUp[retrievable.name]:
                 retrievable.Remove()
                 retrievable.body.position = self.body.position
@@ -271,11 +273,11 @@ class Bot(object):
         for i in range(len(self.inputs)):
             self.rewards.append(self.CalculateReward(i / NUM_STEPS))
 
-    def TakeAction(self, inputList, objectList):
-
-        #insert neural net
-        response = []
-
+    def CleanUp(self):
+        self.context.objects.pop(self.shape._get_shapeid())
+        self.VisField.CleanUp()
+        del self.VisField
+        self.context.space.remove(self.shape,self.body,self.controlGear,self.controlPivot,self.control)
         
 
 

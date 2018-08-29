@@ -22,7 +22,7 @@ PLATFORM_NAME = "Platform"
 FIELD_NAME = "Field"
 
 NUM_STEPS = 60.0 # per sec for physics
-GAME_DURATION = 135 #2 mins 15 secs (teleop duration)
+GAME_DURATION = 20 #2 mins 15 secs (teleop duration)
 SCALE_POINTS = 1 # per sec
 SWITCH_POINTS = 1
 VAULT_POINTS = 5# one time
@@ -52,12 +52,15 @@ INPUT_SIZE = 50
 
 NN_PROC_NAME = "nn"
 SIM_PROC_NAME = "sim"
-NUM_SIMS = 4
+NUM_SIMS = 1
 NUM_GAMES = 2
 
+ACTION_TIMING = 6 #how many physics steps before each action
 BOT_START_POS = [Vec2d((3,5)),
                  Vec2d((3,(FIELD_WIDTH+1)/2)),
                  Vec2d(3,FIELD_WIDTH-3),
                  Vec2d(FIELD_LENGTH-1,5),
                  Vec2d(FIELD_LENGTH-1,(FIELD_WIDTH+1)/2),
                  Vec2d(FIELD_LENGTH-1,FIELD_WIDTH-3)]
+
+MODE = "SIM"#SIM or DRAW

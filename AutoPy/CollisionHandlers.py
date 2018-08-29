@@ -7,7 +7,10 @@ def beginBotPickup(arbiter,space, data):
 
 def endBotPickup(arbiter, space, data):
     context = data[0]
-    context.objects[arbiter.shapes[0]._get_shapeid()].canPickup = False
+    try:
+        context.objects[arbiter.shapes[0]._get_shapeid()].canPickup = False
+    except:
+        pass
     return True
 
 def beginBotScore(arbiter, space, data):
@@ -17,7 +20,10 @@ def beginBotScore(arbiter, space, data):
 
 def endBotScore(arbiter, space, data):
     context = data[0]
-    context.objects[arbiter.shapes[0]._get_shapeid()].canScore = False
+    try:
+        context.objects[arbiter.shapes[0]._get_shapeid()].canScore = False
+    except:
+        pass
     return True
 
 def beginBotVault(arbiter, space, data):
@@ -31,11 +37,14 @@ def beginBotVault(arbiter, space, data):
 
 def endBotVault(arbiter, space, data):
     context = data[0]
-    bot = data[0].objects[arbiter.shapes[0]._get_shapeid()]
-    vault = data[0].objects[arbiter.shapes[1]._get_shapeid()]
-    if bot.color == vault.color:
-        bot.canScore = False
-        bot.canPickup = False
+    try:
+        bot = data[0].objects[arbiter.shapes[0]._get_shapeid()]
+        vault = data[0].objects[arbiter.shapes[1]._get_shapeid()]
+        if bot.color == vault.color:
+            bot.canScore = False
+            bot.canPickup = False
+    except:
+        pass
     return True
 
 def duringBotPlatform(arbiter, space, data):
