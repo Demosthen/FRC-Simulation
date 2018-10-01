@@ -18,11 +18,12 @@ SCALE_PENALTY_NAME = "ScalePenalty"
 OBSTACLE_NAME = "Obstacle"
 CUBE_NAME = "Cube"
 VISFIELD_NAME = "VisField"
+RETFIELD_NAME = "RetField"
 PLATFORM_NAME = "Platform"
 FIELD_NAME = "Field"
 
 NUM_STEPS = 60.0 # per sec for physics
-GAME_DURATION = 20 #2 mins 15 secs (teleop duration)
+GAME_DURATION = 135 #2 mins 15 secs (teleop duration)
 SCALE_POINTS = 1 # per sec
 SWITCH_POINTS = 1
 VAULT_POINTS = 5# one time
@@ -37,8 +38,9 @@ collision_types = {BOT_NAME:1,
                    OBSTACLE_NAME:7,
                    CUBE_NAME:8,
                    VISFIELD_NAME:9,
-                   PLATFORM_NAME:10,
-                   FIELD_NAME:11}
+                   RETFIELD_NAME:10,
+                   PLATFORM_NAME:11,
+                   FIELD_NAME:12}
 RET_NAMES = [CUBE_NAME] # list of all rets in game
 SCORE_NAMES = [SCALE_NAME, SWITCH_NAME, VAULT_NAME]
 
@@ -53,8 +55,13 @@ INPUT_SIZE = 50
 NN_PROC_NAME = "nn"
 SIM_PROC_NAME = "sim"
 NUM_SIMS = 1
-NUM_GAMES = 2
+NUM_GAMES = 1
+SEQ_LEN = 15
+BATCH_SIZE = 15
+OUTPUT_SIZE = 50
+MVMT_TYPE_SIZE = 5
 
+CORRECTION = -50
 ACTION_TIMING = 6 #how many physics steps before each action
 BOT_START_POS = [Vec2d((3,5)),
                  Vec2d((3,(FIELD_WIDTH+1)/2)),
@@ -63,4 +70,6 @@ BOT_START_POS = [Vec2d((3,5)),
                  Vec2d(FIELD_LENGTH-1,(FIELD_WIDTH+1)/2),
                  Vec2d(FIELD_LENGTH-1,FIELD_WIDTH-3)]
 
-MODE = "SIM"#SIM or DRAW
+MODE = "DRAW"#SIM or DRAW
+
+# add RET_DIMS variable later

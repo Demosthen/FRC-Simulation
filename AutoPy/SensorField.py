@@ -7,9 +7,9 @@ from pymunk import Vec2d
 import math, sys, random
 import copy
 from Global import *
-class VisualField(object):
-    """Visual Field of a Bot, 2"""
-    def __init__(self,name,context, bot, width = 0, length = 0, radius = 0):# body of bot, not actual bot object
+class SensorField(object):
+    """Sensory Field of a Bot"""
+    def __init__(self, name, context, bot, width = 0, length = 0, radius = 0):# body of bot, not actual bot object
         #set initial variables
         self.context = context
         self.bot = bot

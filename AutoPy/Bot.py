@@ -6,7 +6,8 @@ import pymunk.pygame_util
 from pymunk import Vec2d
 from collections import defaultdict
 import math, sys, random
-import VisualField
+from SensorField import SensorField
+from Retrievable import Retrievable
 from Global import *
 from Network import Network as nw
 import multiprocessing as mp
@@ -63,7 +64,8 @@ class Bot(object):
         else:
             self.score = self.context.redScore
             self.multiplier = 1
-        self.VisField = VisualField.VisualField("VisField",self.context,self.body,  self.multiplier * 10, self.multiplier * 15)# make variables for vis field dims
+        self.VisField = SensorField("VisField",self.context,self.body,  self.multiplier * 10, self.multiplier * 15)# make variables for vis field dims
+        self.RetField = SensorField("RetField", self.context, self.body, self.multiplier * 5, self.multiplier * 20)
         self.shape.collision_type = collision_types[self.name]
         self.context.objects[self.shape._get_shapeid()] = self
         self.Randomize()
@@ -73,13 +75,15 @@ class Bot(object):
         self.canScore = False
         self.immobileTime = 0
         self.inputs = []
+        self.RNNInputs = []
+        self.logits = []
         self.actions = []
         self.teamScores =[]
         self.rets = defaultdict(lambda:[])
         self.prev = 0 # team's score 1 second ago
 
     def KillLateralMvmt(self):
-            self.control.velocity -= self.body.velocity.projection(Vec2d(math.cos(self.body.angle), math.sin(self.body.angle)).perpendicular())
+        self.control.velocity -= self.body.velocity.projection(Vec2d(math.cos(self.body.angle), math.sin(self.body.angle)).perpendicular())
     
     def ApplyFriction(self, friction):
         """insert force of friction"""
@@ -147,7 +151,8 @@ class Bot(object):
         return self.context.space.shape_query(self.shape)
 
     def GetClosestRet(self, retName = CUBE_NAME):
-        shape_list = self.context.space.shape_query(self.shape)
+        """returns a retrievable in the bot's retfield"""
+        shape_list = self.context.space.shape_query(self.RetField.shape)
         for shape in shape_list:
             if not shape == None and self.context.objects[shape[0]._get_shapeid()].name == retName:
                 return self.context.objects[shape[0]._get_shapeid()]
@@ -156,6 +161,7 @@ class Bot(object):
         return None
 
     def ScoreZoneCheck(self):
+        """checks if bot is in a scorezone of any kind"""
         shape_list = self.context.space.shape_query(self.shape)
         scoreZones = []
         for shape in shape_list:
@@ -171,7 +177,15 @@ class Bot(object):
             if random.random() <= self.pPickUp[retrievable.name]:
                 retrievable.Remove()
                 retrievable.body.position = self.body.position
+                retrievable.pickedUp = True
                 self.rets[retrievable.name].append(retrievable)
+
+
+    def ReceiveRet(self, retName):
+        """Used in pickup zones"""
+        if len(self.rets[retName]) < self.maxPickUp[retName]:
+            self.rets[retName].append(Retrievable(CUBE_NAME,self.context,self.body.position,3,1.083,1.083))
+            self.rets[retName][-1].pickedUp = True
 
     def DropOff(self,  retrievable, zone = None):# tested
         self.rets[retrievable.name].remove(retrievable)
@@ -180,6 +194,7 @@ class Bot(object):
              self.immobileTime = max(random.gauss(self.tScores[zone.name], self.stScores[zone.name]), 0)
         else:
             retrievable.body.position = self.body.position
+            retrievable.pickedUp = False
             retrievable.AddToSpace()
 
     retActKey = [PickUp,# 0
@@ -198,14 +213,14 @@ class Bot(object):
             direction = Vec2d(1,1)
             direction.angle = self.body.angle
             direction = direction.normalized()
-            self.force += proportion * self.maxForce * direction
+            self.force += proportion * self.maxForce * direction * self.multiplier
 
     def Backward(self, proportion):#tested
         if self.immobileTime <= 0:
             direction = Vec2d(1,1)
             direction.angle = self.body.angle
             direction = -direction.normalized()
-            self.force += proportion * self.maxForce * direction
+            self.force += proportion * self.maxForce * direction * self.multiplier
 
     def Brake(self, proportion = 1): #tested
         self.force = 0 
@@ -255,7 +270,8 @@ class Bot(object):
 
     def SaveAction(self, action):
         self.actions.append(action)
-
+    def SaveLogits(self, logits):
+        self.logits.append(logits)
     def SaveReward(self):# tested
         """save net score gain as reward"""
         self.teamScores.append(self.score.val - self.prev)
@@ -266,7 +282,7 @@ class Bot(object):
         reward = 0
         for i in range(minTime, len(self.teamScores)):
             reward += pow(nw.DISCOUNT, i - minTime) * self.teamScores[i]
-        return reward
+        return reward + CORRECTION
 
     def AssignReward(self):# tested
         self.rewards = []
@@ -276,6 +292,7 @@ class Bot(object):
     def CleanUp(self):
         self.context.objects.pop(self.shape._get_shapeid())
         self.VisField.CleanUp()
+        self.RetField.CleanUp()
         del self.VisField
         self.context.space.remove(self.shape,self.body,self.controlGear,self.controlPivot,self.control)
         

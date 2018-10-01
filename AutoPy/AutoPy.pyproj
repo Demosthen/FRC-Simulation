@@ -42,6 +42,9 @@
     <Compile Include="Global.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="InfoWindow.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Int.py">
       <SubType>Code</SubType>
     </Compile>
@@ -57,10 +60,11 @@
     <Compile Include="ScoreZone.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Slope.py">
+    <Compile Include="SensorField.py" />
+    <Compile Include="Sim.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="VisualField.py">
+    <Compile Include="Slope.py">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>

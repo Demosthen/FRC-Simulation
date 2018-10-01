@@ -8,7 +8,6 @@ from pymunk import Vec2d
 import math, sys, random
 from Global import *
 from Retrievable import Retrievable
-from Bot import Bot
 class ScoreZone(object):# rename to Zone object later
     """Score Zone (Penalty Zone if score is negative), 5"""
     
@@ -67,9 +66,6 @@ class ScoreZone(object):# rename to Zone object later
         newRet = Retrievable(retName,self.context, self.pos,3,1.083,1.083)
         newRet.AddToSpace()
         return newRet
-
-    def GivePoints(self, bot,points):
-        hi
 
     def Constrain(self, object):
         self.context.objects[self.shape._get_shapeid()] = object
