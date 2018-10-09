@@ -9,13 +9,13 @@ import math, sys, random
 from SensorField import SensorField
 from Retrievable import Retrievable
 from Global import *
-from Network import Network as nw
+from Network import DISCOUNT
 import multiprocessing as mp
 class Bot(object):
     """Robot Object, 1"""
    
     staticInputSize = 6 # minimum size of input
-    def __init__(self, name, context,  pos, color, manager, width= 2.5, length=2.5, mass = 120, maxForce = 800, maxTorque = 50000, maxSpeed = 30, maxAngSpeed = 1): #force in lbs
+    def __init__(self, name, context,  pos, color, manager, width= 2.5, length=2.5, mass = 120, maxForce = 400, maxTorque = 20000, maxSpeed = 30, maxAngSpeed = 1): #force in lbs
         self.name = name
         self.context = context
         self.pPickUp = dict.fromkeys(RET_NAMES) # probability of picking up retrievable
@@ -64,8 +64,8 @@ class Bot(object):
         else:
             self.score = self.context.redScore
             self.multiplier = 1
-        self.VisField = SensorField("VisField",self.context,self.body,  self.multiplier * 10, self.multiplier * 15)# make variables for vis field dims
-        self.RetField = SensorField("RetField", self.context, self.body, self.multiplier * 5, self.multiplier * 20)
+        self.VisField = SensorField("VisField",self.context,self.body,  self.multiplier * 10, self.multiplier * 15, owner = self)# make variables for vis field dims
+        self.RetField = SensorField("RetField", self.context, self.body, self.multiplier * 2, self.multiplier * 10, owner = self)
         self.shape.collision_type = collision_types[self.name]
         self.context.objects[self.shape._get_shapeid()] = self
         self.Randomize()
@@ -79,6 +79,7 @@ class Bot(object):
         self.logits = []
         self.actions = []
         self.teamScores =[]
+        self.objectList = []
         self.rets = defaultdict(lambda:[])
         self.prev = 0 # team's score 1 second ago
 
@@ -122,6 +123,7 @@ class Bot(object):
         if self.shape.space == None:
             self.context.space.add(self.body, self.shape, self.controlGear, self.controlPivot, self.control)
             self.VisField.AddToSpace()
+            self.RetField.AddToSpace()
 
     def Randomize(self):
         """Set random parameters"""
@@ -150,27 +152,45 @@ class Bot(object):
         """check which shapes overlap with self"""
         return self.context.space.shape_query(self.shape)
 
-    def GetClosestRet(self, retName = CUBE_NAME):
-        """returns a retrievable in the bot's retfield"""
-        shape_list = self.context.space.shape_query(self.RetField.shape)
-        for shape in shape_list:
-            if not shape == None and self.context.objects[shape[0]._get_shapeid()].name == retName:
-                return self.context.objects[shape[0]._get_shapeid()]
-            elif (not shape == None) and (self.context.objects[shape[0]._get_shapeid()].name == PICKUP_NAME or self.context.objects[shape[0]._get_shapeid()].name == VAULT_NAME):
-                return self.context.objects[shape[0]._get_shapeid()].GiveRet(self, retName)
-        return None
+    def CheckInRetField(self):
+        """check which shapes overlap with retfield"""
+        return self.context.space.shape_query(self.RetField.shape)
 
     def ScoreZoneCheck(self):
         """checks if bot is in a scorezone of any kind"""
         shape_list = self.context.space.shape_query(self.shape)
         scoreZones = []
         for shape in shape_list:
-            if not shape[0] == None and type(self.context.objects[shape[0]._get_shapeid()]).__name__ == 'ScoreZone' and self.context.objects[shape[0]._get_shapeid()].isScore:
+            if not shape[0] == None and type(self.context.objects[shape[0]._get_shapeid()]).__name__ == 'ScoreZone' and self.context.objects[shape[0]._get_shapeid()].isScore :
                 scoreZones.append(self.context.objects[shape[0]._get_shapeid()])
         return scoreZones
 
+    def PickUpZoneCheck(self):
+        """checks if bot is in a scorezone of any kind"""
+        shape_list = self.context.space.shape_query(self.shape)
+        scoreZones = []
+        for shape in shape_list:
+            if not shape[0] == None and type(self.context.objects[shape[0]._get_shapeid()]).__name__ == 'ScoreZone' and self.context.objects[shape[0]._get_shapeid()].isPickup :
+                scoreZones.append(self.context.objects[shape[0]._get_shapeid()])
+        return scoreZones
+
+    def GetClosestRet(self, retName = CUBE_NAME):
+        """returns a retrievable in the bot's retfield"""
+        shape_list = self.context.space.shape_query(self.RetField.shape)
+        for shape in shape_list:
+            if shape == None:
+                continue
+            object = self.context.objects[shape[0]._get_shapeid()]
+            if object.name == retName:
+                return object
+            #elif object.name == PICKUP_NAME or object.name == VAULT_NAME:
+            #    return object
+        return None
+
     def PickUp(self, retrievable):# tested
-        if not retrievable == None and len(self.rets[retrievable.name]) < self.maxPickUp[retrievable.name] and self.canPickup and self.immobileTime<=0:
+        if retrievable == None or not retrievable.name in RET_NAMES:
+           return
+        if len(self.rets[retrievable.name]) < self.maxPickUp[retrievable.name] and self.canPickup and self.immobileTime<=0:
             # make bot immobile for some time
             self.immobileTime = max(0, self.immobileTime + random.gauss(self.tPickUp[retrievable.name], self.stPickUp[retrievable.name]))
             # if bot is lucky it will pick up the thing
@@ -180,11 +200,10 @@ class Bot(object):
                 retrievable.pickedUp = True
                 self.rets[retrievable.name].append(retrievable)
 
-
     def ReceiveRet(self, retName):
         """Used in pickup zones"""
-        if len(self.rets[retName]) < self.maxPickUp[retName]:
-            self.rets[retName].append(Retrievable(CUBE_NAME,self.context,self.body.position,3,1.083,1.083))
+        if len(self.rets[retName]) < self.maxPickUp[retName] and self.canPickup:
+            self.rets[retName].append(Retrievable(retName,self.context,self.body.position,3,1.083,1.083)) # replace dims with ret dims
             self.rets[retName][-1].pickedUp = True
 
     def DropOff(self,  retrievable, zone = None):# tested
@@ -238,20 +257,30 @@ class Bot(object):
         # get all objects in visual field
         shapes = self.CheckInFront()
         zones = self.CheckState()
+        rets = self.CheckInRetField()
         # init with robot stats
         inputList = [self.mass, self.maxForce, self.maxTorque, self.maxSpeed, self.body.angular_velocity]
         inputList.extend(self.body.velocity)
-        # add num of each ret
+        # add num of each ret held
         for list in self.rets:
             inputList.append(len(self.rets))
-        objectList = []
+        self.objectList = []
         zoneList = []
-        # add objects in view (no zones)
+        # add objects in view (no rets or zones)
         for shape, contacts in shapes:
             object = self.context.objects[shape._get_shapeid()]
-            if type(object).__name__ != 'ScoreZone' and object != None:
-                objectList.append(object)
+            typ = type(object).__name__
+            if typ == "Bot" or typ == "Obstacle":
                 inputList.append(collision_types[object.name])
+        for shape, contacts in rets:
+            object = self.context.objects[shape._get_shapeid()]
+            typ = type(object).__name__
+            if typ == "Retrievable":
+                self.objectList.append(object)
+                inputList.append(collision_types[object.name])
+        # in case bot wants to try to retrieve from a zone
+        for name in RET_NAMES:
+            inputList.append(collision_types[name])
         # add zones it is in (may need to be removed)
         #for shape, contacts in zones:
         #    zone = objects[shape._get_shapeid()]
@@ -270,8 +299,10 @@ class Bot(object):
 
     def SaveAction(self, action):
         self.actions.append(action)
+
     def SaveLogits(self, logits):
         self.logits.append(logits)
+
     def SaveReward(self):# tested
         """save net score gain as reward"""
         self.teamScores.append(self.score.val - self.prev)
@@ -281,7 +312,7 @@ class Bot(object):
         minTime = math.ceil(timeStep)
         reward = 0
         for i in range(minTime, len(self.teamScores)):
-            reward += pow(nw.DISCOUNT, i - minTime) * self.teamScores[i]
+            reward += pow(DISCOUNT, i - minTime) * self.teamScores[i]
         return reward + CORRECTION
 
     def AssignReward(self):# tested
@@ -291,11 +322,12 @@ class Bot(object):
 
     def CleanUp(self):
         self.context.objects.pop(self.shape._get_shapeid())
+        for list in self.rets.values():
+            for ret in list:
+                ret.CleanUp()
+                del ret
         self.VisField.CleanUp()
         self.RetField.CleanUp()
         del self.VisField
+        del self.RetField
         self.context.space.remove(self.shape,self.body,self.controlGear,self.controlPivot,self.control)
-        
-
-
-

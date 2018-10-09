@@ -31,24 +31,19 @@ class Retrievable(object):
         self.shape.elasticity = 0.95
         self.shape.friction = 0.9
         self.shape.color = pygame.color.THECOLORS["yellow"]
-        #self.pickupZone = ScoreZone.ScoreZone("Pickup",self.context,copy.deepcopy(self.pos),False, False, True,radius = 1)
         self.shape.collision_type = collision_types[self.name]
         self.context.objects[self.shape._get_shapeid()] = self
         self.pickedUp = False
-
+        self.context.numRets+=1
     def AddToSpace(self):
-        #self.pickupZone.AddToSpace()
-        #self.pickupZone.Constrain(self)
         if not self.pickedUp:
             self.context.space.add(self.body, self.shape)
 
     def Remove(self):
-        #self.pickupZone.inSpace = False
-        #self.context.space.remove(self.body,self.shape, self.pickupZone.body, self.pickupZone.shape, self.pickupZone.constraint)
         self.context.space.remove(self.body, self.shape)
+
     def CleanUp(self):
+        self.context.numRets-=1
         self.context.objects.pop(self.shape._get_shapeid())
-        #if self.pickupZone.inSpace:
-        #    self.pickupZone.CleanUp()
-        #    self.context.space.remove(self.body, self.shape)
-        #del self.pickupZone
+        if not self.pickedUp:
+            self.Remove()

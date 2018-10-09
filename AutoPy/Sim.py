@@ -19,7 +19,7 @@ from Int import Int
 import copy
 import time
 import runpy
-from Network import Network as nw
+import Network as nw
 import tensorflow as tf
 import numpy as np
 from Context import Context
@@ -28,20 +28,7 @@ import InfoWindow
 
 currentProcess = mp.current_process().name
 
-def getAction(network, inputConn):
-    sess = tf.Session()
-    placeholder = tf.placeholder(tf.float32, [None,INPUT_SIZE])
-    feedForward = network.feedForward(placeholder)
-    sess.run(tf.global_variables_initializer())
-    while True:
-        input = inputConn.recv()
-        inputConn.send(feedForward.eval(feed_dict = {placeholder: input}, session = sess)[0])
-
-def SimFn(network,pipe):
-    sess = tf.Session()
-    placeholder = tf.placeholder(tf.float32, [None,INPUT_SIZE])
-    feedForward = network.feedForward(placeholder)
-    sess.run(tf.global_variables_initializer())
+def SimFn(pipe):
     #Lengths are in ft and masses are in lbs
     def getColors():
         """return scale and switch colors in that order"""
@@ -58,22 +45,26 @@ def SimFn(network,pipe):
             context.objects[elem.shape._get_shapeid()] = elem
 
     def scaleScore(scaleZones):#call every second pls
+        change = SCALE_POINTS * int(not scaleZones[0].numRet == scaleZones[1].numRet)
         if scaleZones[int(scaleZones[0].numRet < scaleZones[1].numRet)].color == "red":
-            context.redScore.val += SCALE_POINTS * int(not scaleZones[0].numRet == scaleZones[1].numRet)
+            context.redScore.val += change
         else:
-            context.blueScore.val += SCALE_POINTS * int(not scaleZones[0].numRet == scaleZones[1].numRet)
+            context.blueScore.val += change
+        return change
 
     def switchScore(switchZones):#call every second pls
+        change1 = SCALE_POINTS * int(not switchZones[0].numRet == switchZones[1].numRet)
         if switchZones[int(switchZones[0].numRet < switchZones[1].numRet)].color == "red":
-            context.redScore.val += SCALE_POINTS * int(not switchZones[0].numRet == switchZones[1].numRet)
+            context.redScore.val += change1
         else:
-            context.blueScore.val += SCALE_POINTS * int(not switchZones[0].numRet == switchZones[1].numRet)
+            context.blueScore.val += change1
 
+        change2 = SCALE_POINTS * int(not switchZones[2].numRet == switchZones[3].numRet)
         if switchZones[int(switchZones[2].numRet < switchZones[3].numRet)].color == "red":
-            context.redScore.val += SCALE_POINTS * int(not switchZones[2].numRet == switchZones[3].numRet)
+            context.redScore.val += change2
         else:
-            context.blueScore.val += SCALE_POINTS * int(not switchZones[2].numRet == switchZones[3].numRet)
-
+            context.blueScore.val += change2
+        return change1, change2
     def vaultScore(vaultZones):# per cube
         redIndex = int(vaultZones[1].color == "red") 
         context.redScore.val += VAULT_POINTS * vaultZones[redIndex].numRet
@@ -104,11 +95,13 @@ def SimFn(network,pipe):
                     bots.append(Bot(BOT_NAME,context,pos = BOT_START_POS[i], color = "red", manager = manager))
                 else:
                     bots.append(Bot(BOT_NAME,context,pos = BOT_START_POS[i], color = "blue", manager = manager))
+                bots[-1].canPickup = True
                 bots[-1].ReceiveRet(CUBE_NAME)
+                bots[-1].canPickup = False
 
         def MakeVaults():
-            vaults.append(ScoreZone(VAULT_NAME,context,Vec2d((2.5,17.5)), True, False, True,"red", 3,4,retKey = VAULT_RETKEY))
-            vaults.append(ScoreZone(VAULT_NAME,context,Vec2d((FIELD_LENGTH-0.5,FIELD_WIDTH-16.5)), True, False, True,"blue", 3,4,retKey = VAULT_RETKEY))
+            vaults.append(ScoreZone(VAULT_NAME,context,Vec2d((2.5,17.5)), True, False, False,"red", 3,4,retKey = VAULT_RETKEY))
+            vaults.append(ScoreZone(VAULT_NAME,context,Vec2d((FIELD_LENGTH-0.5,FIELD_WIDTH-16.5)), True, False, False,"blue", 3,4,retKey = VAULT_RETKEY))
 
         def MakeSwitches():
             switches.append(ScoreZone(SWITCH_NAME,context,Vec2d((15,21)),True, False, False,switchColor[0], radius = 3, retKey = SWITCH_RETKEY))
@@ -179,13 +172,17 @@ def SimFn(network,pipe):
             context.redScore.val = 0
             context.blueScore.val = 0
             context.gameTime = 0
-            for bot in bots:
-                bot.CleanUp()
-            for cube in cubes:
-                cube.CleanUp()
+            context.numBlueRets = 14
+            context.numRedRets = 14
+            for shape in context.space.shapes:
+                object = context.objects[shape._get_shapeid()]
+                if object != None and (object.name == BOT_NAME or object.name == CUBE_NAME):
+                    object.CleanUp()
+                    del object
             bots.clear()
             cubes.clear()
             MakeBots()
+            context.numRets = 0
             MakeCubes()
             for switch in switches:
                 switch.numRet = 0
@@ -209,7 +206,7 @@ def SimFn(network,pipe):
 
         #add field walls
         field = Field(context,static_body)
-
+        
         MakeBots()
         MakeVaults()
         MakeScales()
@@ -257,7 +254,12 @@ def SimFn(network,pipe):
         botScalePenalty = context.space.add_collision_handler(collision_types[BOT_NAME], collision_types[SCALE_PENALTY_NAME])
         botScalePenalty.data[0] = context
         botScalePenalty.begin = beginBotScalePenalty
-
+        FieldRets = []
+        for retName in RET_NAMES:
+            FieldRets.append(context.space.add_collision_handler(collision_types[RETFIELD_NAME], collision_types[retName]))
+            FieldRets[-1].data[0] = context
+            FieldRets[-1].pre_solve = beginFieldRet
+            FieldRets[-1].separate = endFieldRet
         forwardFlag = False
         backFlag = False
         rightFlag = False
@@ -279,6 +281,7 @@ def SimFn(network,pipe):
         #main loop
         while(True):
             cue = pipe.recv()
+            context.count += 1 #number of simulations done
             print("starting simulation")
             print(context.gameTime)
             while running and context.gameTime < GAME_DURATION:
@@ -312,26 +315,30 @@ def SimFn(network,pipe):
                     elif event.type == KEYUP and event.key == K_a:
                         leftFlag = False
                     elif event.type == KEYDOWN and event.key == K_q:
-                        bots[1].PickUp(bots[1].GetClosestRet(CUBE_NAME))
+                        zones = bots[1].PickUpZoneCheck()
+                        if len(zones)>0:
+                            print("giving ret")
+                            zones[0].GiveRet(bots[1], CUBE_NAME)
+                        else:
+                            bots[1].PickUp(bots[1].GetClosestRet())
                     elif event.type == KEYDOWN and event.key == K_f:
                         vaultScore(vaults)
                     elif event.type == KEYDOWN and event.key == K_g:
                         bots[1].Brake()
                 if forwardFlag:
-                    bots[1].Forward(10)
+                    bots[1].Forward(SCALE)
                 if rightFlag:
-                    bots[1].TurnRight(10)
+                    bots[1].TurnRight(SCALE)
                 if leftFlag:
-                    bots[1].TurnLeft(10)
+                    bots[1].TurnLeft(SCALE)
                 if backFlag:
-                    bots[1].Backward(10)
+                    bots[1].Backward(SCALE)
                 if MODE == "DRAW":
                     ### Clear screen
                     screen.fill(THECOLORS["white"])
-
                     ### Draw stuff
                     context.space.debug_draw(draw_options)
-                ## Update physics, move forward 1/STEP_SIZE second
+                ## Update physics, move forward 1/NUM_STEPS second
                 dt = 1.0/NUM_STEPS
                 for x in range(1):
                     for bot in bots:
@@ -345,7 +352,7 @@ def SimFn(network,pipe):
                 #for i in range(NUM_BOTS):
                     #pipes[i][0].send(bots[i].inputs[-15:])
                     #feedForward.eval(feed_dict = {placeholder: input}, session = sess)[0]
-                if(int(context.gameTime/dt) % 6 == 0):
+                if(int(context.gameTime/dt) % ACTION_TIMING == 0):#get bot's action
                     infoAction = []
                     #save input for training neural net later
                     origSize = []
@@ -353,10 +360,10 @@ def SimFn(network,pipe):
                         origSize.append( bot.SaveInput() )
                     for i in range(NUM_BOTS):
                         #batchOutput = pipes[i][0].recv()
-                        batchInput = bots[i].inputs[-15:]
-                        while len(batchInput) < 15:
+                        batchInput = bots[i].inputs[-SEQ_LEN:]
+                        while len(batchInput) < SEQ_LEN:
                             batchInput.append([0] * INPUT_SIZE)
-                        batchOutput = feedForward.eval(feed_dict = {placeholder: batchInput}, session = sess)[0]
+                        batchOutput = nw.feedForward.eval(feed_dict = {nw.feedHolder: batchInput}, session = nw.sess)[0]
                         bots[i].RNNInputs.append(batchInput)
                         output = batchOutput
                         bots[i].SaveLogits(output.tolist())
@@ -364,9 +371,10 @@ def SimFn(network,pipe):
                         mvmtIdx = np.argmax(mvmts,0)
                         mvmt = bots[i].mvmtKey[mvmtIdx] # get appropriate movement based on nn output
                         infoAction.append(mvmt.__name__)
-                        mvmt(bots[i],10) # execute movement
+                        mvmt(bots[i],SCALE * ACTION_TIMING) # execute movement
                         numTypes = len(bots[i].rets.items())
-                        #logic for dropping off rets
+                        zones = bots[i].ScoreZoneCheck()
+                        #logic for dropping off rets (not working)
                         if(numTypes > 1): # if there's more than one type of thing the bot can hold
                             maxRet = np.amax(output[MVMT_TYPE_SIZE:MVMT_TYPE_SIZE+numTypes])
                             dropIndex = np.argmax(output[MVMT_TYPE_SIZE:MVMT_TYPE_SIZE+numTypes]) + MVMT_TYPE_SIZE
@@ -378,53 +386,73 @@ def SimFn(network,pipe):
                         else:
                             retOut = list(output[MVMT_TYPE_SIZE:MVMT_TYPE_SIZE + numTypes])
                             index = np.argmax(retOut, axis = 0)
-                            rets = bots[i].rets[index]
+                            cnt = 0
+                            for lst in bots[i].rets.values(): # since keys of dict are never modified, order should be preserved from when it was accessed in input
+                                if cnt == index:
+                                    rets = lst
+                                    break
+                                cnt+=1
+                               
                             if retOut[index] >= 0.5:
-                                zones = bots[i].ScoreZoneCheck()
                                 infoAction[-1] += " and DROPOFF" + str(retOut[index])
                                 if len(zones) > 0 and len(rets) > 0:
                                     # if there is a zone nearby, drop it there
-                                    bots[i].DropOff(ret[0], zones[0])
+                                    for zone in zones:
+                                        if zone.name == "ScoreZone":
+                                            bots[i].DropOff(rets[0], zone)
+                                            break
                                 elif len(rets) > 0: # if you have any to drop off
-                                    bots[i].DropOff(ret[0])
+                                    bots[i].DropOff(rets[0])
                             else:
                                 dropIndex = -1
                         #logic for picking stuff up
-                        numAhead = origSize[i] - MVMT_TYPE_SIZE - numTypes # get number of shapes ahead of bot
-                        pickOut = list(output[MVMT_TYPE_SIZE+numTypes: MVMT_TYPE_SIZE + numTypes + numAhead])
+                        #pickOut = list(output[MVMT_TYPE_SIZE+numTypes: MVMT_TYPE_SIZE + numTypes + numAhead])
+                        pickOut = list(output[-(len(bots[i].objectList) + len(RET_NAMES)):])
                         pickUpIndex = np.argmax(pickOut, axis = 0)
-                        if pickOut[pickUpIndex] >= 0.5:
+                        diffIndex = len(pickOut) - pickUpIndex
+                        if diffIndex > len(RET_NAMES) and pickOut[pickUpIndex] >= 0.5:
                             infoAction[-1] += " and PICKUP" + str(pickOut[pickUpIndex])
-                            pickUpRet = bots[i].GetClosestRet()
+                            pickUpRet = bots[i].objectList[pickUpIndex]#GetClosestRet()
+                            #print("object: " + str(bots[i].objectList[pickUpIndex]))
                             bots[i].PickUp(pickUpRet)
                             if pickUpRet != None:
                                 pickUpIndex = MVMT_TYPE_SIZE + numTypes + pickUpIndex
                             else:
                                 pickUpIndex = -1
+                        elif diffIndex <= len(RET_NAMES):
+                            if len(zones) > 0:
+                                retType = bots[i].inputs[-1][origSize[i] - diffIndex]
+                                #retType = len(RET_NAMES) - diffIndex + 1 # necessary because of the order in the input and inv collision is one based
+                                zones[0].GiveRet(bots[i], inv_collision_types[retType])
                         else:
                             pickUpIndex = -1
                         action = []
-                        action.append(mvmt)
+                        action.extend(mvmts.tolist())
                         action.append(dropIndex)
                         action.append(pickUpIndex)
                         bots[i].SaveAction(action)
-                    
+                        for name in RET_NAMES:
+                            infoAction[-1]+= " " + name + ": " + str(len(bots[i].rets[name])) 
+                        
                 #stuff done every second
                 if not int(context.gameTime - dt) == int(context.gameTime):
+                    
+                    #update scale and switch scores
+                    scaleChange = scaleScore(scales)
+                    switchChanges = switchScore(switches)
                     if MODE == "DRAW":
+                        infoAction[-1]+= " scale: " + str(scaleChange) + " switches: " + str(switchChanges)
                         # update infowindow
                         infoPipe[0].send(infoAction)
-                    #update scale and switch scores
-                    scaleScore( scales)
-                    switchScore( switches)
-                    print(context.gameTime)
+                        pass
+                    print(str(context.gameTime) + " " + str(context.numRets) +" " + str(context.count))
                     #save scores
                     for bot in bots:
                         bot.SaveReward()
                 if MODE == "DRAW":
                 ### Flip screen
                     pygame.display.flip()
-                    clock.tick()
+                    clock.tick(60)
                     pygame.display.set_caption("fps: " + str(clock.get_fps()) + " red: " + str(context.redScore.val) + " blue: " + str(context.blueScore.val))
             
             inputs = []

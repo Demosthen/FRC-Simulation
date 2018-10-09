@@ -63,10 +63,20 @@ class ScoreZone(object):# rename to Zone object later
         self.numRet += 1
 
     def GiveRet(self, bot, retName):
-        newRet = Retrievable(retName,self.context, self.pos,3,1.083,1.083)
-        newRet.AddToSpace()
-        return newRet
-
+        if not self.isPickup:
+            return
+        elif self.color == "blue" and self.context.numBlueRets <=0:
+            return
+        elif self.color == "red" and self.context.numRedRets <=0:
+            return
+        else:
+            if self.color == "blue":
+                self.context.numBlueRets -= 1
+            else:
+                self.context.numRedRets -= 1
+            print("getting ret")
+            bot.ReceiveRet(retName)
+            
     def Constrain(self, object):
         self.context.objects[self.shape._get_shapeid()] = object
         self.constraint = pymunk.PivotJoint(self.body, object.body, (0,0), (0,0))

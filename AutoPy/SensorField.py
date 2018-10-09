@@ -9,10 +9,11 @@ import copy
 from Global import *
 class SensorField(object):
     """Sensory Field of a Bot"""
-    def __init__(self, name, context, bot, width = 0, length = 0, radius = 0):# body of bot, not actual bot object
+    def __init__(self, name, context, bot, width = 0, length = 0, radius = 0, owner = None):# body of bot, not actual bot passed as param
         #set initial variables
         self.context = context
         self.bot = bot
+        self.owner = owner
         self.width = width * SCALE
         self.length = length * SCALE
         self.name = name

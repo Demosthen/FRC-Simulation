@@ -23,7 +23,7 @@ PLATFORM_NAME = "Platform"
 FIELD_NAME = "Field"
 
 NUM_STEPS = 60.0 # per sec for physics
-GAME_DURATION = 135 #2 mins 15 secs (teleop duration)
+GAME_DURATION = 110 #2 mins 15 secs (teleop duration) minus 25 secs for climb 
 SCALE_POINTS = 1 # per sec
 SWITCH_POINTS = 1
 VAULT_POINTS = 5# one time
@@ -41,6 +41,7 @@ collision_types = {BOT_NAME:1,
                    RETFIELD_NAME:10,
                    PLATFORM_NAME:11,
                    FIELD_NAME:12}
+inv_collision_types = {v: k for k,v in collision_types.items()} # inverse dict for reverse lookup
 RET_NAMES = [CUBE_NAME] # list of all rets in game
 SCORE_NAMES = [SCALE_NAME, SWITCH_NAME, VAULT_NAME]
 
@@ -48,20 +49,19 @@ SCORE_NAMES = [SCALE_NAME, SWITCH_NAME, VAULT_NAME]
 SCALE_RETKEY = {CUBE_NAME: True}
 SWITCH_RETKEY = {CUBE_NAME: True}
 VAULT_RETKEY = {CUBE_NAME: True}
+PENALTY_RETKEY = {CUBE_NAME: False}
 SCALE = 20 # makes stuff look bigger on screen
 GRAV3D = 32.2# accel due to grav in ft
 INPUT_SIZE = 50
 
 NN_PROC_NAME = "nn"
 SIM_PROC_NAME = "sim"
-NUM_SIMS = 1
-NUM_GAMES = 1
+
 SEQ_LEN = 15
 BATCH_SIZE = 15
 OUTPUT_SIZE = 50
 MVMT_TYPE_SIZE = 5
-
-CORRECTION = -50
+CORRECTION = 0.01
 ACTION_TIMING = 6 #how many physics steps before each action
 BOT_START_POS = [Vec2d((3,5)),
                  Vec2d((3,(FIELD_WIDTH+1)/2)),
@@ -71,5 +71,7 @@ BOT_START_POS = [Vec2d((3,5)),
                  Vec2d(FIELD_LENGTH-1,FIELD_WIDTH-3)]
 
 MODE = "DRAW"#SIM or DRAW
-
+RESTORE_MODEL = True
+NUM_SIMS = 1
+NUM_GAMES = 80
 # add RET_DIMS variable later
