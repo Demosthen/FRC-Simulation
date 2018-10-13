@@ -33,22 +33,25 @@ if __name__ == "__main__":
         #tensor = tf.convert_to_tensor(arr)
         print(np.shape(data[0]))
         
-        epochs = 201
+        epochs = 1001
         counter = 0
         # run stuff
         nw.sess.run(nw.training_init_op,feed_dict = {nw.inputHolder : data[0],
                                                      nw.actionHolder : data[1],
                                                      nw.rewardHolder : data[2]})
-
+        #i = 0
         for i in range(epochs):
+        #while True:
             try:
+                i+=1
                 l = nw.sess.run(nw.totalLoss)
                 nw.sess.run(nw.optimizer)
                 counter += 1
                 if i % 25 == 0:
-                    print("Epoch: {}, loss: {:.3f}".format(i,l))
+                    print("Epoch: {}, loss: {}".format(i,str(l)))
             except tf.errors.OutOfRangeError as o:
-                nw.sess.run(nw.training_init_op)
+                #nw.sess.run(nw.training_init_op)
+                break
                 print(counter)
         save_path = nw.saver.save(nw.sess, nw.SAVE_PATH)
         print("Done saving at "+str(save_path))
@@ -61,7 +64,9 @@ if __name__ == "__main__":
     #test
     #better to undestimate visual field bc convnet can mislabel at edges
     #TODO:
-    #account for case where pickupindex == -1 and/or dropoffindex == -1
-    #softmax all 50 outputs
-    #vault scoring
     #train (hopefully)
+    #add random input to encourage early exploration
+    #not randomizing dataset for some reason?
+    #add color input?
+    #add scale and switch data
+    #nan for losses...

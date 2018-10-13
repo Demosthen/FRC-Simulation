@@ -27,7 +27,7 @@ GAME_DURATION = 110 #2 mins 15 secs (teleop duration) minus 25 secs for climb
 SCALE_POINTS = 1 # per sec
 SWITCH_POINTS = 1
 VAULT_POINTS = 5# one time
-FOUL_POINTS = 5
+FOUL_POINTS = 0
 TECH_FOUL_POINTS = 25
 collision_types = {BOT_NAME:1,
                    PICKUP_NAME:2,
@@ -58,10 +58,10 @@ NN_PROC_NAME = "nn"
 SIM_PROC_NAME = "sim"
 
 SEQ_LEN = 15
-BATCH_SIZE = 15
+BATCH_SIZE = 32
 OUTPUT_SIZE = 50
 MVMT_TYPE_SIZE = 5
-CORRECTION = 0.01
+CORRECTION = 0 # to make sure gradients are nonzero
 ACTION_TIMING = 6 #how many physics steps before each action
 BOT_START_POS = [Vec2d((3,5)),
                  Vec2d((3,(FIELD_WIDTH+1)/2)),
@@ -70,8 +70,8 @@ BOT_START_POS = [Vec2d((3,5)),
                  Vec2d(FIELD_LENGTH-1,(FIELD_WIDTH+1)/2),
                  Vec2d(FIELD_LENGTH-1,FIELD_WIDTH-3)]
 
-MODE = "DRAW"#SIM or DRAW
-RESTORE_MODEL = True
-NUM_SIMS = 1
-NUM_GAMES = 80
+MODE = "SIM"#SIM or DRAW
+RESTORE_MODEL = False
+NUM_SIMS = 4
+NUM_GAMES = 1000
 # add RET_DIMS variable later

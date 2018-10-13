@@ -82,6 +82,7 @@ class Bot(object):
         self.objectList = []
         self.rets = defaultdict(lambda:[])
         self.prev = 0 # team's score 1 second ago
+        self.numObstacles = 0
 
     def KillLateralMvmt(self):
         self.control.velocity -= self.body.velocity.projection(Vec2d(math.cos(self.body.angle), math.sin(self.body.angle)).perpendicular())
@@ -128,20 +129,20 @@ class Bot(object):
     def Randomize(self):
         """Set random parameters"""
         for key, ret in self.pPickUp.items():
-            self.pPickUp[key] = random.uniform(0,1)
+            self.pPickUp[key] = random.uniform(0.5,1)
         for key, ret in self.tPickUp.items():
             self.tPickUp[key] = random.uniform(1,3)
         for key, ret in self.stPickUp.items():
             self.stPickUp[key] = random.uniform(0,1)
         for key, ret in self.pScores.items():
-            temp = random.uniform(0,1)
+            temp = random.uniform(0.5,1)
             self.pScores[key] = round(temp) * temp# >=0.5 or = 0
         for key, ret in self.tScores.items():
             self.tScores[key] = random.uniform(1,4)
         for key, ret in self.stScores.items():
             self.stScores[key] = random.uniform(1,2)
         for key, ret in self.maxPickUp.items():
-            self.maxPickUp[key] = 1 #in the case of powerup
+            self.maxPickUp[key] = 1 
 
     def CheckInFront(self):#tested
         """check which shapes overlap w/ visual field, output shape[0] and contact point set[1]"""
@@ -166,13 +167,13 @@ class Bot(object):
         return scoreZones
 
     def PickUpZoneCheck(self):
-        """checks if bot is in a scorezone of any kind"""
+        """checks if bot is in a pickupzone of any kind"""
         shape_list = self.context.space.shape_query(self.shape)
-        scoreZones = []
+        pickupZones = []
         for shape in shape_list:
             if not shape[0] == None and type(self.context.objects[shape[0]._get_shapeid()]).__name__ == 'ScoreZone' and self.context.objects[shape[0]._get_shapeid()].isPickup :
-                scoreZones.append(self.context.objects[shape[0]._get_shapeid()])
-        return scoreZones
+                pickupZones.append(self.context.objects[shape[0]._get_shapeid()])
+        return pickupZones
 
     def GetClosestRet(self, retName = CUBE_NAME):
         """returns a retrievable in the bot's retfield"""
@@ -261,17 +262,23 @@ class Bot(object):
         # init with robot stats
         inputList = [self.mass, self.maxForce, self.maxTorque, self.maxSpeed, self.body.angular_velocity]
         inputList.extend(self.body.velocity)
+        inputList.append(self.body.angle)
+        inputList.extend(self.body.position/SCALE)
+        inputList.append(self.score.val)
+        inputList.append(self.context.gameTime)
         # add num of each ret held
         for list in self.rets:
             inputList.append(len(self.rets))
         self.objectList = []
         zoneList = []
+        self.numObstacles = 0
         # add objects in view (no rets or zones)
         for shape, contacts in shapes:
             object = self.context.objects[shape._get_shapeid()]
             typ = type(object).__name__
             if typ == "Bot" or typ == "Obstacle":
                 inputList.append(collision_types[object.name])
+                self.numObstacles += 1
         for shape, contacts in rets:
             object = self.context.objects[shape._get_shapeid()]
             typ = type(object).__name__
@@ -281,6 +288,7 @@ class Bot(object):
         # in case bot wants to try to retrieve from a zone
         for name in RET_NAMES:
             inputList.append(collision_types[name])
+        
         # add zones it is in (may need to be removed)
         #for shape, contacts in zones:
         #    zone = objects[shape._get_shapeid()]
@@ -313,12 +321,13 @@ class Bot(object):
         reward = 0
         for i in range(minTime, len(self.teamScores)):
             reward += pow(DISCOUNT, i - minTime) * self.teamScores[i]
-        return reward + CORRECTION
+        return reward
 
     def AssignReward(self):# tested
         self.rewards = []
+        numInputs = len(self.inputs)
         for i in range(len(self.inputs)):
-            self.rewards.append(self.CalculateReward(i / NUM_STEPS))
+            self.rewards.append(self.CalculateReward(i / NUM_STEPS) + CORRECTION)
 
     def CleanUp(self):
         self.context.objects.pop(self.shape._get_shapeid())

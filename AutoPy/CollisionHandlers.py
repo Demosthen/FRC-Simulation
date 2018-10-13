@@ -34,13 +34,19 @@ def endFieldRet(arbiter, space, data):
 
 def beginBotScore(arbiter, space, data):
     context = data[0]
-    context.objects[arbiter.shapes[0]._get_shapeid()].canScore = True
+    bot = context.objects[arbiter.shapes[0]._get_shapeid()]
+    zone = context.objects[arbiter.shapes[1]._get_shapeid()]
+    if bot.color == zone.color:
+        context.objects[arbiter.shapes[0]._get_shapeid()].canScore = True
     return True
 
 def endBotScore(arbiter, space, data):
     context = data[0]
     try:
-        context.objects[arbiter.shapes[0]._get_shapeid()].canScore = False
+        bot = context.objects[arbiter.shapes[0]._get_shapeid()]
+        zone = context.objects[arbiter.shapes[1]._get_shapeid()]
+        if bot.color == zone.color:
+            context.objects[arbiter.shapes[0]._get_shapeid()].canScore = False
     except:
         pass
     return True

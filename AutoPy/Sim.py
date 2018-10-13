@@ -65,11 +65,11 @@ def SimFn(pipe):
         else:
             context.blueScore.val += change2
         return change1, change2
-    def vaultScore(vaultZones):# per cube
+    def vaultScore(vaultZones, prevRed, prevBlue):# per cube
         redIndex = int(vaultZones[1].color == "red") 
-        context.redScore.val += VAULT_POINTS * vaultZones[redIndex].numRet
-        context.blueScore.val += VAULT_POINTS * vaultZones[1-redIndex].numRet
-
+        context.redScore.val += VAULT_POINTS * (vaultZones[redIndex].numRet - prevRed)
+        context.blueScore.val += VAULT_POINTS * (vaultZones[1-redIndex].numRet - prevBlue)
+        return vaultZones[redIndex].numRet , vaultZones[1-redIndex].numRet
     if  currentProcess == SIM_PROC_NAME:
         context = Context()
         manager = mp.Manager()
@@ -264,6 +264,8 @@ def SimFn(pipe):
         backFlag = False
         rightFlag = False
         leftFlag = False
+        dropFlag = False
+        pickupFlag = False
         pygame.init()
         screen = pygame.display.set_mode((1200, 600))
         draw_options = pymunk.pygame_util.DrawOptions(screen)
@@ -282,9 +284,13 @@ def SimFn(pipe):
         while(True):
             cue = pipe.recv()
             context.count += 1 #number of simulations done
+            prevRed = 0
+            prevBlue = 0
             print("starting simulation")
             print(context.gameTime)
             while running and context.gameTime < GAME_DURATION:
+                dropFlag = False
+                pickupFlag = False
                 for event in pygame.event.get():
                     # debug input
                     if event.type == QUIT:
@@ -292,6 +298,7 @@ def SimFn(pipe):
                     elif event.type == KEYDOWN and event.key == K_ESCAPE:
                         running = False
                     elif event.type == KEYDOWN and event.key == K_e:
+                        dropFlag = True
                         if len(bots[1].rets[CUBE_NAME]) > 0:
                             zones = bots[1].ScoreZoneCheck()
                             if len(zones) > 0:
@@ -315,14 +322,14 @@ def SimFn(pipe):
                     elif event.type == KEYUP and event.key == K_a:
                         leftFlag = False
                     elif event.type == KEYDOWN and event.key == K_q:
+                        pickupFlag = True
                         zones = bots[1].PickUpZoneCheck()
                         if len(zones)>0:
-                            print("giving ret")
                             zones[0].GiveRet(bots[1], CUBE_NAME)
                         else:
                             bots[1].PickUp(bots[1].GetClosestRet())
                     elif event.type == KEYDOWN and event.key == K_f:
-                        vaultScore(vaults)
+                        vaultScore(vaults, prevRed, prevBlue)
                     elif event.type == KEYDOWN and event.key == K_g:
                         bots[1].Brake()
                 if forwardFlag:
@@ -353,12 +360,14 @@ def SimFn(pipe):
                     #pipes[i][0].send(bots[i].inputs[-15:])
                     #feedForward.eval(feed_dict = {placeholder: input}, session = sess)[0]
                 if(int(context.gameTime/dt) % ACTION_TIMING == 0):#get bot's action
+                    
                     infoAction = []
                     #save input for training neural net later
                     origSize = []
                     for bot in bots:
                         origSize.append( bot.SaveInput() )
                     for i in range(NUM_BOTS):
+                        infoAction.append("")
                         #batchOutput = pipes[i][0].recv()
                         batchInput = bots[i].inputs[-SEQ_LEN:]
                         while len(batchInput) < SEQ_LEN:
@@ -367,69 +376,97 @@ def SimFn(pipe):
                         bots[i].RNNInputs.append(batchInput)
                         output = batchOutput
                         bots[i].SaveLogits(output.tolist())
-                        mvmts = output[:MVMT_TYPE_SIZE] # isolate mvmt output
-                        mvmtIdx = np.argmax(mvmts,0)
-                        mvmt = bots[i].mvmtKey[mvmtIdx] # get appropriate movement based on nn output
-                        infoAction.append(mvmt.__name__)
-                        mvmt(bots[i],SCALE * ACTION_TIMING) # execute movement
                         numTypes = len(bots[i].rets.items())
+                        numPick = len(bots[i].objectList) + len(RET_NAMES)
                         zones = bots[i].ScoreZoneCheck()
-                        #logic for dropping off rets (not working)
-                        if(numTypes > 1): # if there's more than one type of thing the bot can hold
-                            maxRet = np.amax(output[MVMT_TYPE_SIZE:MVMT_TYPE_SIZE+numTypes])
-                            dropIndex = np.argmax(output[MVMT_TYPE_SIZE:MVMT_TYPE_SIZE+numTypes]) + MVMT_TYPE_SIZE
+                        #idx = np.argmax(output)
+                        if np.random.uniform() <= 0.9:
+                            idx = np.random.choice(range(0,OUTPUT_SIZE),p = output)
                         else:
-                            maxRet = output[MVMT_TYPE_SIZE]
-                            dropIndex = MVMT_TYPE_SIZE
-                        if maxRet < 0.5: # if the bot can't hold anything
-                            dropIndex = -1
-                        else:
+                            # default probability distribution, such that 1/3 of the time it moves, 1/3 it picks stuff up, 1/3 it drops off
+                            # makes sure bot has variety of experiences
+                            prob = [] 
+                            for j in range(MVMT_TYPE_SIZE):
+                                prob.append(1/(MVMT_TYPE_SIZE * 3))
+                            for j in range(numTypes):
+                                prob.append(1/(numTypes * 3))
+                            for j in range(numPick):
+                                prob.append(1/(numPick * 3))
+                            idx = np.random.choice(MVMT_TYPE_SIZE + numTypes + numPick, p = prob)
+                        if forwardFlag:
+                            idx = 0
+                            print(idx)
+                        elif backFlag:
+                            idx = 1
+                            print(idx)
+                        elif rightFlag:
+                            idx = 2
+                            print(idx)
+                        elif leftFlag:
+                            idx = 3
+                            print(idx)
+                        elif dropFlag:
+                            idx = MVMT_TYPE_SIZE
+                            print(idx)
+                        elif pickupFlag:
+                            if len(zones) > 0:
+                                idx = MVMT_TYPE_SIZE + numTypes + numPick-1
+                            else:
+                                idx = MVMT_TYPE_SIZE + numTypes
+                            print(idx)
+                        if idx < MVMT_TYPE_SIZE:
+                            mvmt = bots[i].mvmtKey[idx] # get appropriate movement based on nn output
+                            infoAction[-1] += (mvmt.__name__)
+                            mvmt(bots[i],SCALE * ACTION_TIMING) # execute movement
+                            
+                        elif idx < MVMT_TYPE_SIZE + numTypes:
+                            idx -= MVMT_TYPE_SIZE
+                            #logic for dropping off rets (not working)
+                            if(numTypes > 1): # if there's more than one type of thing the bot can hold
+                                maxRet = np.amax(output[MVMT_TYPE_SIZE:MVMT_TYPE_SIZE+numTypes])
+                                dropIndex = np.argmax(output[MVMT_TYPE_SIZE:MVMT_TYPE_SIZE+numTypes]) + MVMT_TYPE_SIZE
+                            else:
+                                maxRet = output[MVMT_TYPE_SIZE]
+                                dropIndex = MVMT_TYPE_SIZE
+
                             retOut = list(output[MVMT_TYPE_SIZE:MVMT_TYPE_SIZE + numTypes])
-                            index = np.argmax(retOut, axis = 0)
+                            index = idx
                             cnt = 0
                             for lst in bots[i].rets.values(): # since keys of dict are never modified, order should be preserved from when it was accessed in input
                                 if cnt == index:
                                     rets = lst
                                     break
                                 cnt+=1
-                               
-                            if retOut[index] >= 0.5:
-                                infoAction[-1] += " and DROPOFF" + str(retOut[index])
-                                if len(zones) > 0 and len(rets) > 0:
-                                    # if there is a zone nearby, drop it there
-                                    for zone in zones:
-                                        if zone.name == "ScoreZone":
-                                            bots[i].DropOff(rets[0], zone)
-                                            break
-                                elif len(rets) > 0: # if you have any to drop off
-                                    bots[i].DropOff(rets[0])
-                            else:
-                                dropIndex = -1
-                        #logic for picking stuff up
-                        #pickOut = list(output[MVMT_TYPE_SIZE+numTypes: MVMT_TYPE_SIZE + numTypes + numAhead])
-                        pickOut = list(output[-(len(bots[i].objectList) + len(RET_NAMES)):])
-                        pickUpIndex = np.argmax(pickOut, axis = 0)
-                        diffIndex = len(pickOut) - pickUpIndex
-                        if diffIndex > len(RET_NAMES) and pickOut[pickUpIndex] >= 0.5:
-                            infoAction[-1] += " and PICKUP" + str(pickOut[pickUpIndex])
-                            pickUpRet = bots[i].objectList[pickUpIndex]#GetClosestRet()
-                            #print("object: " + str(bots[i].objectList[pickUpIndex]))
-                            bots[i].PickUp(pickUpRet)
-                            if pickUpRet != None:
-                                pickUpIndex = MVMT_TYPE_SIZE + numTypes + pickUpIndex
+                            infoAction[-1] += " DROPOFF" + str(retOut[index])
+                            if len(zones) > 0 and len(rets) > 0:
+                                # if there is a zone nearby, drop it there
+                                for zone in zones:
+                                    if zone.retKey[rets[0].name]:
+                                        bots[i].DropOff(rets[0], zone)
+                                        break
+                            elif len(rets) > 0: # if you have any to drop off
+                                bots[i].DropOff(rets[0])
+                        elif idx < MVMT_TYPE_SIZE + numTypes + numPick:
+                            
+                            #logic for picking stuff up
+                            zones = bots[i].PickUpZoneCheck()
+                            #pickOut = list(output[MVMT_TYPE_SIZE+numTypes: MVMT_TYPE_SIZE + numTypes + numAhead])
+                            pickOut = list(output[-numPick:])
+                            pickUpIndex = idx - MVMT_TYPE_SIZE - numTypes
+                            diffIndex = numPick - pickUpIndex
+                            if diffIndex > len(RET_NAMES):
+                                infoAction[-1] += " PICKUP" + str(output[pickUpIndex])
+                                pickUpRet = bots[i].objectList[pickUpIndex]#GetClosestRet()
+                                
+                                bots[i].PickUp(pickUpRet)
+                            elif diffIndex <= len(RET_NAMES):
+                                if len(zones) > 0:
+                                    retType = bots[i].inputs[-1][origSize[i]-diffIndex]
+                                    zones[0].GiveRet(bots[i], inv_collision_types[retType])
                             else:
                                 pickUpIndex = -1
-                        elif diffIndex <= len(RET_NAMES):
-                            if len(zones) > 0:
-                                retType = bots[i].inputs[-1][origSize[i] - diffIndex]
-                                #retType = len(RET_NAMES) - diffIndex + 1 # necessary because of the order in the input and inv collision is one based
-                                zones[0].GiveRet(bots[i], inv_collision_types[retType])
-                        else:
-                            pickUpIndex = -1
-                        action = []
-                        action.extend(mvmts.tolist())
-                        action.append(dropIndex)
-                        action.append(pickUpIndex)
+                        action = idx
+                        #action.append(idx)
                         bots[i].SaveAction(action)
                         for name in RET_NAMES:
                             infoAction[-1]+= " " + name + ": " + str(len(bots[i].rets[name])) 
@@ -440,12 +477,13 @@ def SimFn(pipe):
                     #update scale and switch scores
                     scaleChange = scaleScore(scales)
                     switchChanges = switchScore(switches)
+                    prevRed, prevBlue = vaultScore(vaults, prevRed, prevBlue)
                     if MODE == "DRAW":
                         infoAction[-1]+= " scale: " + str(scaleChange) + " switches: " + str(switchChanges)
                         # update infowindow
                         infoPipe[0].send(infoAction)
                         pass
-                    print(str(context.gameTime) + " " + str(context.numRets) +" " + str(context.count))
+                    print(str(context.gameTime) + " " + str(context.redScore.val) + " " + str(context.blueScore.val) +" " + str(context.count))
                     #save scores
                     for bot in bots:
                         bot.SaveReward()
@@ -453,7 +491,7 @@ def SimFn(pipe):
                 ### Flip screen
                     pygame.display.flip()
                     clock.tick(60)
-                    pygame.display.set_caption("fps: " + str(clock.get_fps()) + " red: " + str(context.redScore.val) + " blue: " + str(context.blueScore.val))
+                    pygame.display.set_caption("fps: " + str(clock.get_fps()) + " red: " + str(context.redScore.val) + " blue: " + str(context.blueScore.val)+ " " + str(vaults[0].numRet) + " " + str(vaults[1].numRet))
             
             inputs = []
             actions = []
