@@ -65,11 +65,13 @@ def SimFn(pipe):
         else:
             context.blueScore.val += change2
         return change1, change2
+
     def vaultScore(vaultZones, prevRed, prevBlue):# per cube
         redIndex = int(vaultZones[1].color == "red") 
         context.redScore.val += VAULT_POINTS * (vaultZones[redIndex].numRet - prevRed)
         context.blueScore.val += VAULT_POINTS * (vaultZones[1-redIndex].numRet - prevBlue)
         return vaultZones[redIndex].numRet , vaultZones[1-redIndex].numRet
+
     if  currentProcess == SIM_PROC_NAME:
         context = Context()
         manager = mp.Manager()
@@ -83,7 +85,7 @@ def SimFn(pipe):
         cubes = []
         cubePickup = []
         platforms = []
-        scaleColor, switchColor = getColors()
+        context.scaleColor, context.switchColor = getColors()
         if MODE == "DRAW":
             infoPipe = mp.Pipe()
             info = mp.Process(target = InfoWindow.run, args = [infoPipe[1]], daemon = True)
@@ -104,14 +106,14 @@ def SimFn(pipe):
             vaults.append(ScoreZone(VAULT_NAME,context,Vec2d((FIELD_LENGTH-0.5,FIELD_WIDTH-16.5)), True, False, False,"blue", 3,4,retKey = VAULT_RETKEY))
 
         def MakeSwitches():
-            switches.append(ScoreZone(SWITCH_NAME,context,Vec2d((15,21)),True, False, False,switchColor[0], radius = 3, retKey = SWITCH_RETKEY))
-            switches.append(ScoreZone(SWITCH_NAME,context,Vec2d((15,8)),True, False, False,switchColor[1],radius = 3, retKey = SWITCH_RETKEY))
-            switches.append(ScoreZone(SWITCH_NAME,context,Vec2d((41,21)),True, False, False,switchColor[0],radius = 3, retKey = SWITCH_RETKEY))
-            switches.append(ScoreZone(SWITCH_NAME,context,Vec2d((41,8)),True, False, False,switchColor[1],radius = 3, retKey = SWITCH_RETKEY))
+            switches.append(ScoreZone(SWITCH_NAME,context,Vec2d((15,21)),True, False, False,context.switchColor[0], radius = 3, retKey = SWITCH_RETKEY))
+            switches.append(ScoreZone(SWITCH_NAME,context,Vec2d((15,8)),True, False, False,context.switchColor[1],radius = 3, retKey = SWITCH_RETKEY))
+            switches.append(ScoreZone(SWITCH_NAME,context,Vec2d((41,21)),True, False, False,context.switchColor[0],radius = 3, retKey = SWITCH_RETKEY))
+            switches.append(ScoreZone(SWITCH_NAME,context,Vec2d((41,8)),True, False, False,context.switchColor[1],radius = 3, retKey = SWITCH_RETKEY))
 
         def MakeScales():
-            scales.append(ScoreZone(SCALE_NAME,context,Vec2d((28,20)),True,False,False,scaleColor[0],radius = 3.5, retKey = SCALE_RETKEY))
-            scales.append(ScoreZone(SCALE_NAME,context,Vec2d((28,9)),True, False, False,scaleColor[1],radius = 3.5, retKey = SCALE_RETKEY))
+            scales.append(ScoreZone(SCALE_NAME,context,Vec2d((28,20)),True,False,False,context.scaleColor[0],radius = 3.5, retKey = SCALE_RETKEY))
+            scales.append(ScoreZone(SCALE_NAME,context,Vec2d((28,9)),True, False, False,context.scaleColor[1],radius = 3.5, retKey = SCALE_RETKEY))
 
         def MakeScaleBarriers():
             """physical scale obstacle"""
@@ -119,8 +121,8 @@ def SimFn(pipe):
 
         def MakeScalePenalties():
             """space under scales (penalized bc unpredictable)"""
-            scalePenalties.append(ScoreZone(SCALE_PENALTY_NAME,context,Vec2d((28,20)),False, True, False,scaleColor[0],4,3))
-            scalePenalties.append(ScoreZone(SCALE_PENALTY_NAME,context,Vec2d((28,9)),False, True, False,scaleColor[1],4,3))
+            scalePenalties.append(ScoreZone(SCALE_PENALTY_NAME,context,Vec2d((28,20)),False, True, False,context.scaleColor[0],4,3))
+            scalePenalties.append(ScoreZone(SCALE_PENALTY_NAME,context,Vec2d((28,9)),False, True, False,context.scaleColor[1],4,3))
     
         def MakeSwitchBarriers():
             """physical switch obstacle"""
@@ -174,26 +176,32 @@ def SimFn(pipe):
             context.gameTime = 0
             context.numBlueRets = 14
             context.numRedRets = 14
+
             for shape in context.space.shapes:
                 object = context.objects[shape._get_shapeid()]
-                if object != None and (object.name == BOT_NAME or object.name == CUBE_NAME):
+                if object != None and (object.name in TO_RESET):
                     object.CleanUp()
                     del object
             bots.clear()
             cubes.clear()
-            MakeBots()
+            switches.clear()
+            scales.clear()
             context.numRets = 0
+            MakeBots()
             MakeCubes()
-            for switch in switches:
-                switch.numRet = 0
-            for scale in scales:
-                scale.numRet = 0
+            context.scaleColor, context.switchColor = getColors()
+            MakeSwitches()
+            MakeScales()
             for vault in vaults:
                 vault.numRet = 0
             for bot in bots:
                 bot.AddToSpace()
             for cube in cubes:
                 cube.AddToSpace()
+            for scale in scales:
+                scale.AddToSpace()
+            for switch in switches:
+                switch.AddToSpace()
 
         ### Physics stuff
         context.space.gravity = (0.0, 0.0)
@@ -372,7 +380,7 @@ def SimFn(pipe):
                         batchInput = bots[i].inputs[-SEQ_LEN:]
                         while len(batchInput) < SEQ_LEN:
                             batchInput.append([0] * INPUT_SIZE)
-                        batchOutput = nw.feedForward.eval(feed_dict = {nw.feedHolder: batchInput}, session = nw.sess)[0]
+                        batchOutput = nw.feedForward.eval(feed_dict = {nw.feedHolder: [batchInput]}, session = nw.sess)[0]
                         bots[i].RNNInputs.append(batchInput)
                         output = batchOutput
                         bots[i].SaveLogits(output.tolist())

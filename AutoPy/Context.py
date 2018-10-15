@@ -11,4 +11,6 @@ class Context(object):
         self.numRets = 0
         self.numBlueRets = 14 # number of rets total that can be received from blue feeder stations
         self.numRedRets = 14 # ^^ but for red
+        self.scaleColor = []
+        self.switchColor = []
         self.count = 0

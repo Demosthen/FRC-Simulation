@@ -44,7 +44,7 @@ collision_types = {BOT_NAME:1,
 inv_collision_types = {v: k for k,v in collision_types.items()} # inverse dict for reverse lookup
 RET_NAMES = [CUBE_NAME] # list of all rets in game
 SCORE_NAMES = [SCALE_NAME, SWITCH_NAME, VAULT_NAME]
-
+TO_RESET = [CUBE_NAME, SWITCH_NAME, BOT_NAME, SCALE_NAME]
 # dicts of what retrievables each scorezone can take
 SCALE_RETKEY = {CUBE_NAME: True}
 SWITCH_RETKEY = {CUBE_NAME: True}

@@ -48,7 +48,7 @@ if __name__ == "__main__":
                 nw.sess.run(nw.optimizer)
                 counter += 1
                 if i % 25 == 0:
-                    print("Epoch: {}, loss: {}".format(i,str(l)))
+                    print("Epoch: {}, loss: {}".format(i,str(np.average(l))))
             except tf.errors.OutOfRangeError as o:
                 #nw.sess.run(nw.training_init_op)
                 break
@@ -68,5 +68,4 @@ if __name__ == "__main__":
     #add random input to encourage early exploration
     #not randomizing dataset for some reason?
     #add color input?
-    #add scale and switch data
-    #nan for losses...
+    #use relu or smth instead of softmax

@@ -266,6 +266,8 @@ class Bot(object):
         inputList.extend(self.body.position/SCALE)
         inputList.append(self.score.val)
         inputList.append(self.context.gameTime)
+        inputList.extend([int(a == "red") for a in self.context.scaleColor])
+        inputList.extend([int(a == "red") for a in self.context.switchColor])
         # add num of each ret held
         for list in self.rets:
             inputList.append(len(self.rets))
