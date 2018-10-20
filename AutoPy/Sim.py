@@ -194,6 +194,7 @@ def SimFn(pipe):
             MakeScales()
             for vault in vaults:
                 vault.numRet = 0
+                vault.CleanOut()
             for bot in bots:
                 bot.AddToSpace()
             for cube in cubes:
@@ -376,6 +377,9 @@ def SimFn(pipe):
                         origSize.append( bot.SaveInput() )
                     for i in range(NUM_BOTS):
                         infoAction.append("")
+                        numTypes = len(bots[i].rets.items())
+                        numPick = len(bots[i].objectList) + len(RET_NAMES)
+                        zones = bots[i].ScoreZoneCheck()
                         #batchOutput = pipes[i][0].recv()
                         batchInput = bots[i].inputs[-SEQ_LEN:]
                         while len(batchInput) < SEQ_LEN:
@@ -384,12 +388,11 @@ def SimFn(pipe):
                         bots[i].RNNInputs.append(batchInput)
                         output = batchOutput
                         bots[i].SaveLogits(output.tolist())
-                        numTypes = len(bots[i].rets.items())
-                        numPick = len(bots[i].objectList) + len(RET_NAMES)
-                        zones = bots[i].ScoreZoneCheck()
+                        
                         #idx = np.argmax(output)
-                        if np.random.uniform() <= 0.9:
-                            idx = np.random.choice(range(0,OUTPUT_SIZE),p = output)
+                        if np.random.uniform() >= 1-((21+113+253+475+140+context.count)/1000):
+                            idx = np.argmax(output)
+                            #idx = np.random.choice(range(0,OUTPUT_SIZE),p = output)
                         else:
                             # default probability distribution, such that 1/3 of the time it moves, 1/3 it picks stuff up, 1/3 it drops off
                             # makes sure bot has variety of experiences
@@ -400,7 +403,8 @@ def SimFn(pipe):
                                 prob.append(1/(numTypes * 3))
                             for j in range(numPick):
                                 prob.append(1/(numPick * 3))
-                            idx = np.random.choice(MVMT_TYPE_SIZE + numTypes + numPick, p = prob)
+                           # idx = np.random.choice(MVMT_TYPE_SIZE + numTypes + numPick, p = prob)
+                            idx = np.random.choice(range(0,OUTPUT_SIZE))
                         if forwardFlag:
                             idx = 0
                             print(idx)
@@ -498,7 +502,7 @@ def SimFn(pipe):
                 if MODE == "DRAW":
                 ### Flip screen
                     pygame.display.flip()
-                    clock.tick(60)
+                    clock.tick()
                     pygame.display.set_caption("fps: " + str(clock.get_fps()) + " red: " + str(context.redScore.val) + " blue: " + str(context.blueScore.val)+ " " + str(vaults[0].numRet) + " " + str(vaults[1].numRet))
             
             inputs = []

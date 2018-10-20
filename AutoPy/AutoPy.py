@@ -43,7 +43,6 @@ if __name__ == "__main__":
         for i in range(epochs):
         #while True:
             try:
-                i+=1
                 l = nw.sess.run(nw.totalLoss)
                 nw.sess.run(nw.optimizer)
                 counter += 1
@@ -64,8 +63,5 @@ if __name__ == "__main__":
     #test
     #better to undestimate visual field bc convnet can mislabel at edges
     #TODO:
-    #train (hopefully)
-    #add random input to encourage early exploration
-    #not randomizing dataset for some reason?
-    #add color input?
-    #use relu or smth instead of softmax
+    #some training done already, should evaluate w/ DRAW
+    #try new conda package version of tensorflow

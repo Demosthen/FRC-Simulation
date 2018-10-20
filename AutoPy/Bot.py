@@ -260,12 +260,14 @@ class Bot(object):
         zones = self.CheckState()
         rets = self.CheckInRetField()
         # init with robot stats
-        inputList = [self.mass, self.maxForce, self.maxTorque, self.maxSpeed, self.body.angular_velocity]
-        inputList.extend(self.body.velocity)
+        inputList = [self.mass, self.maxForce/SCALE, self.maxTorque/SCALE, self.maxSpeed/SCALE, self.body.angular_velocity]
+        inputList.extend(self.body.velocity/SCALE)
         inputList.append(self.body.angle)
+        inputList.append(self.multiplier)#corresponds to color
         inputList.extend(self.body.position/SCALE)
         inputList.append(self.score.val)
         inputList.append(self.context.gameTime)
+        inputList.extend(self.pScores.values())
         inputList.extend([int(a == "red") for a in self.context.scaleColor])
         inputList.extend([int(a == "red") for a in self.context.switchColor])
         # add num of each ret held

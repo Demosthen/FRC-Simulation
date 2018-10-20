@@ -58,7 +58,7 @@ NN_PROC_NAME = "nn"
 SIM_PROC_NAME = "sim"
 
 SEQ_LEN = 15
-BATCH_SIZE = 32
+BATCH_SIZE = 100
 OUTPUT_SIZE = 50
 MVMT_TYPE_SIZE = 5
 CORRECTION = 0 # to make sure gradients are nonzero
@@ -71,7 +71,8 @@ BOT_START_POS = [Vec2d((3,5)),
                  Vec2d(FIELD_LENGTH-1,FIELD_WIDTH-3)]
 
 MODE = "SIM"#SIM or DRAW
-RESTORE_MODEL = False
+RESTORE_MODEL = True # 90 0.9
+EPSILON = 0.9 # 0 =max exploitation, 1= max exploration
 NUM_SIMS = 4
 NUM_GAMES = 1000
 # add RET_DIMS variable later
