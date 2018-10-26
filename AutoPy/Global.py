@@ -49,6 +49,7 @@ TO_RESET = [CUBE_NAME, SWITCH_NAME, BOT_NAME, SCALE_NAME]
 SCALE_RETKEY = {CUBE_NAME: True}
 SWITCH_RETKEY = {CUBE_NAME: True}
 VAULT_RETKEY = {CUBE_NAME: True}
+PICKUP_RETKEY = {CUBE_NAME: True}
 PENALTY_RETKEY = {CUBE_NAME: False}
 SCALE = 20 # makes stuff look bigger on screen
 GRAV3D = 32.2# accel due to grav in ft
@@ -59,9 +60,9 @@ SIM_PROC_NAME = "sim"
 
 SEQ_LEN = 15
 BATCH_SIZE = 100
-OUTPUT_SIZE = 50
 MVMT_TYPE_SIZE = 5
-CORRECTION = 0 # to make sure gradients are nonzero
+OUTPUT_SIZE = MVMT_TYPE_SIZE + len(RET_NAMES) + len(RET_NAMES)
+CORRECTION = 0.000001 # to make sure gradients are nonzero
 ACTION_TIMING = 6 #how many physics steps before each action
 BOT_START_POS = [Vec2d((3,5)),
                  Vec2d((3,(FIELD_WIDTH+1)/2)),
@@ -70,9 +71,9 @@ BOT_START_POS = [Vec2d((3,5)),
                  Vec2d(FIELD_LENGTH-1,(FIELD_WIDTH+1)/2),
                  Vec2d(FIELD_LENGTH-1,FIELD_WIDTH-3)]
 
-MODE = "SIM"#SIM or DRAW
+MODE = "DRAW"#SIM or DRAW
 RESTORE_MODEL = True # 90 0.9
-EPSILON = 0.9 # 0 =max exploitation, 1= max exploration
+EPSILON = 0.9 # 0 = max exploitation, 1 = max exploration
 NUM_SIMS = 4
-NUM_GAMES = 1000
+NUM_GAMES = 500
 # add RET_DIMS variable later

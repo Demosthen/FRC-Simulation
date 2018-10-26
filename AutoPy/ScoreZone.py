@@ -80,12 +80,14 @@ class ScoreZone(object):# rename to Zone object later
         self.context.objects[self.shape._get_shapeid()] = object
         self.constraint = pymunk.PivotJoint(self.body, object.body, (0,0), (0,0))
         self.context.space.add(self.constraint)
+
     def CleanOut(self):
         for list in self.inv.values():
             for ret in list:
                 ret.CleanUp()
                 del ret
         self.inv.clear()
+
     def CleanUp(self):
         self.context.objects.pop(self.shape._get_shapeid())
         self.CleanOut()

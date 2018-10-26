@@ -141,10 +141,10 @@ def SimFn(pipe):
 
         def MakeCubePickupZones():
             """areas where you pick up cubes"""
-            cubePickup.append(ScoreZone(PICKUP_NAME,context, Vec2d((2,FIELD_LENGTH/2)),False, False, True,"blue", radius = 1.5))
-            cubePickup.append(ScoreZone(PICKUP_NAME,context, Vec2d((2,2)), False, False, True,"blue", radius = 1.5))
-            cubePickup.append(ScoreZone(PICKUP_NAME,context, Vec2d((FIELD_LENGTH,FIELD_LENGTH/2)),False, False, True,"red", radius = 1.5))
-            cubePickup.append(ScoreZone(PICKUP_NAME,context, Vec2d((FIELD_LENGTH,2)), False, False, True,"red", radius = 1.5))
+            cubePickup.append(ScoreZone(PICKUP_NAME,context, Vec2d((2,FIELD_LENGTH/2)),False, False, True,"blue", radius = 1.5, retKey = PICKUP_RETKEY))
+            cubePickup.append(ScoreZone(PICKUP_NAME,context, Vec2d((2,2)), False, False, True,"blue", radius = 1.5, retKey = PICKUP_RETKEY))
+            cubePickup.append(ScoreZone(PICKUP_NAME,context, Vec2d((FIELD_LENGTH,FIELD_LENGTH/2)),False, False, True,"red", radius = 1.5, retKey = PICKUP_RETKEY))
+            cubePickup.append(ScoreZone(PICKUP_NAME,context, Vec2d((FIELD_LENGTH,2)), False, False, True,"red", radius = 1.5, retKey = PICKUP_RETKEY))
 
         def MakePlatforms():
             top = [8.66517,4.4893, 3.4375]
@@ -288,7 +288,10 @@ def SimFn(pipe):
             #pipes.append(mp.Pipe())
             #nnProcs.append(mp.Process(target = getAction,name = NN_PROC_NAME, args = [network, pipes[i][1]], daemon = True))
             #nnProcs[i].start()
-        print("done with setup")
+        print("done with setup", "w")
+        inFile = open("inputs.txt", "w")
+        outFile = open("outputs.txt", "w")
+        rewardFile = open("rewards.txt", "w")
         #main loop
         while(True):
             cue = pipe.recv()
@@ -308,12 +311,13 @@ def SimFn(pipe):
                         running = False
                     elif event.type == KEYDOWN and event.key == K_e:
                         dropFlag = True
-                        if len(bots[1].rets[CUBE_NAME]) > 0:
-                            zones = bots[1].ScoreZoneCheck()
-                            if len(zones) > 0:
-                                bots[1].DropOff(bots[1].rets[CUBE_NAME][0], zones[0])
-                            else:
-                                bots[1].DropOff(bots[1].rets[CUBE_NAME][0])
+                        bots[1].DropOffNearest(CUBE_NAME)
+                        #if len(bots[1].rets[CUBE_NAME]) > 0:
+                        #    zones = bots[1].ScoreZoneCheck()
+                        #    if len(zones) > 0:
+                        #        bots[1].DropOff(bots[1].rets[CUBE_NAME][0], zones[0])
+                        #    else:
+                         #       bots[1].DropOff(bots[1].rets[CUBE_NAME][0])
                     elif event.type == KEYDOWN and event.key == K_w:
                         forwardFlag = True
                     elif event.type == KEYUP and event.key == K_w:
@@ -332,11 +336,12 @@ def SimFn(pipe):
                         leftFlag = False
                     elif event.type == KEYDOWN and event.key == K_q:
                         pickupFlag = True
-                        zones = bots[1].PickUpZoneCheck()
-                        if len(zones)>0:
-                            zones[0].GiveRet(bots[1], CUBE_NAME)
-                        else:
-                            bots[1].PickUp(bots[1].GetClosestRet())
+                        bots[1].PickUpNearest(CUBE_NAME)
+                        #zones = bots[1].PickUpZoneCheck()
+                        #if len(zones)>0:
+                        #    zones[0].GiveRet(bots[1], CUBE_NAME)
+                        #else:
+                        #    bots[1].PickUp(bots[1].GetClosestRet())
                     elif event.type == KEYDOWN and event.key == K_f:
                         vaultScore(vaults, prevRed, prevBlue)
                     elif event.type == KEYDOWN and event.key == K_g:
@@ -384,13 +389,12 @@ def SimFn(pipe):
                         batchInput = bots[i].inputs[-SEQ_LEN:]
                         while len(batchInput) < SEQ_LEN:
                             batchInput.append([0] * INPUT_SIZE)
-                        batchOutput = nw.feedForward.eval(feed_dict = {nw.feedHolder: [batchInput]}, session = nw.sess)[0]
+                        batchOutput = nw.probs.eval(feed_dict = {nw.next_element["input"]: [batchInput]}, session = nw.sess)[0]
                         bots[i].RNNInputs.append(batchInput)
                         output = batchOutput
                         bots[i].SaveLogits(output.tolist())
-                        
                         #idx = np.argmax(output)
-                        if np.random.uniform() >= 1-((21+113+253+475+140+context.count)/1000):
+                        if np.random.uniform() >= 0:#1-((context.count)/NUM_GAMES):
                             idx = np.argmax(output)
                             #idx = np.random.choice(range(0,OUTPUT_SIZE),p = output)
                         else:
@@ -405,6 +409,7 @@ def SimFn(pipe):
                                 prob.append(1/(numPick * 3))
                            # idx = np.random.choice(MVMT_TYPE_SIZE + numTypes + numPick, p = prob)
                             idx = np.random.choice(range(0,OUTPUT_SIZE))
+                        action = idx
                         if forwardFlag:
                             idx = 0
                             print(idx)
@@ -422,7 +427,7 @@ def SimFn(pipe):
                             print(idx)
                         elif pickupFlag:
                             if len(zones) > 0:
-                                idx = MVMT_TYPE_SIZE + numTypes + numPick-1
+                                idx = MVMT_TYPE_SIZE + numTypes 
                             else:
                                 idx = MVMT_TYPE_SIZE + numTypes
                             print(idx)
@@ -433,51 +438,15 @@ def SimFn(pipe):
                             
                         elif idx < MVMT_TYPE_SIZE + numTypes:
                             idx -= MVMT_TYPE_SIZE
-                            #logic for dropping off rets (not working)
-                            if(numTypes > 1): # if there's more than one type of thing the bot can hold
-                                maxRet = np.amax(output[MVMT_TYPE_SIZE:MVMT_TYPE_SIZE+numTypes])
-                                dropIndex = np.argmax(output[MVMT_TYPE_SIZE:MVMT_TYPE_SIZE+numTypes]) + MVMT_TYPE_SIZE
-                            else:
-                                maxRet = output[MVMT_TYPE_SIZE]
-                                dropIndex = MVMT_TYPE_SIZE
-
-                            retOut = list(output[MVMT_TYPE_SIZE:MVMT_TYPE_SIZE + numTypes])
-                            index = idx
-                            cnt = 0
-                            for lst in bots[i].rets.values(): # since keys of dict are never modified, order should be preserved from when it was accessed in input
-                                if cnt == index:
-                                    rets = lst
-                                    break
-                                cnt+=1
-                            infoAction[-1] += " DROPOFF" + str(retOut[index])
-                            if len(zones) > 0 and len(rets) > 0:
-                                # if there is a zone nearby, drop it there
-                                for zone in zones:
-                                    if zone.retKey[rets[0].name]:
-                                        bots[i].DropOff(rets[0], zone)
-                                        break
-                            elif len(rets) > 0: # if you have any to drop off
-                                bots[i].DropOff(rets[0])
-                        elif idx < MVMT_TYPE_SIZE + numTypes + numPick:
-                            
+                            #logic for dropping off rets 
+                            bots[i].DropOffNearest(RET_NAMES[idx])
+                            infoAction[-1] += " DROPOFF" + str(RET_NAMES[idx])
+                            idx+=MVMT_TYPE_SIZE
+                        else:
+                            idx-=(MVMT_TYPE_SIZE+numTypes)
                             #logic for picking stuff up
-                            zones = bots[i].PickUpZoneCheck()
-                            #pickOut = list(output[MVMT_TYPE_SIZE+numTypes: MVMT_TYPE_SIZE + numTypes + numAhead])
-                            pickOut = list(output[-numPick:])
-                            pickUpIndex = idx - MVMT_TYPE_SIZE - numTypes
-                            diffIndex = numPick - pickUpIndex
-                            if diffIndex > len(RET_NAMES):
-                                infoAction[-1] += " PICKUP" + str(output[pickUpIndex])
-                                pickUpRet = bots[i].objectList[pickUpIndex]#GetClosestRet()
-                                
-                                bots[i].PickUp(pickUpRet)
-                            elif diffIndex <= len(RET_NAMES):
-                                if len(zones) > 0:
-                                    retType = bots[i].inputs[-1][origSize[i]-diffIndex]
-                                    zones[0].GiveRet(bots[i], inv_collision_types[retType])
-                            else:
-                                pickUpIndex = -1
-                        action = idx
+                            bots[i].PickUpNearest(RET_NAMES[idx])
+                            idx+=MVMT_TYPE_SIZE+numTypes
                         #action.append(idx)
                         bots[i].SaveAction(action)
                         for name in RET_NAMES:
@@ -485,7 +454,6 @@ def SimFn(pipe):
                         
                 #stuff done every second
                 if not int(context.gameTime - dt) == int(context.gameTime):
-                    
                     #update scale and switch scores
                     scaleChange = scaleScore(scales)
                     switchChanges = switchScore(switches)

@@ -60,9 +60,11 @@ class Bot(object):
         self.shape.color = pygame.color.THECOLORS[self.color]
         if color is "blue":
             self.score = self.context.blueScore
+            self.enemyScore = self.context.redScore
             self.multiplier = -1
         else:
             self.score = self.context.redScore
+            self.enemyScore = self.context.blueScore
             self.multiplier = 1
         self.VisField = SensorField("VisField",self.context,self.body,  self.multiplier * 10, self.multiplier * 15, owner = self)# make variables for vis field dims
         self.RetField = SensorField("RetField", self.context, self.body, self.multiplier * 2, self.multiplier * 10, owner = self)
@@ -201,6 +203,20 @@ class Bot(object):
                 retrievable.pickedUp = True
                 self.rets[retrievable.name].append(retrievable)
 
+    def PickUpNearest(self, retName): 
+        if self.canPickup:
+            zones = self.PickUpZoneCheck()
+            for zone in zones:
+                if zone!= None and zone.retKey[retName]:
+                    zone.GiveRet(self, retName)
+                    return
+        fieldList = self.CheckInRetField()
+        for shape in fieldList:
+            object = self.context.objects[shape[0]._get_shapeid()]
+            if object != None and object.name == retName:
+                self.PickUp(object)
+                return 
+
     def ReceiveRet(self, retName):
         """Used in pickup zones"""
         if len(self.rets[retName]) < self.maxPickUp[retName] and self.canPickup:
@@ -216,6 +232,17 @@ class Bot(object):
             retrievable.body.position = self.body.position
             retrievable.pickedUp = False
             retrievable.AddToSpace()
+
+    def DropOffNearest(self, retName):
+        if len(self.rets[retName]) <=0:
+            return
+        if self.canScore:
+            zones = self.ScoreZoneCheck()
+            for zone in zones:
+                 if zone != None and zone.retKey[retName]:
+                     self.DropOff(self.rets[retName][0],zone)
+                     return
+        self.DropOff(self.rets[retName][0])
 
     retActKey = [PickUp,# 0
                  DropOff]# 1
@@ -266,6 +293,7 @@ class Bot(object):
         inputList.append(self.multiplier)#corresponds to color
         inputList.extend(self.body.position/SCALE)
         inputList.append(self.score.val)
+        inputList.append(self.enemyScore.val)
         inputList.append(self.context.gameTime)
         inputList.extend(self.pScores.values())
         inputList.extend([int(a == "red") for a in self.context.scaleColor])
@@ -289,9 +317,6 @@ class Bot(object):
             if typ == "Retrievable":
                 self.objectList.append(object)
                 inputList.append(collision_types[object.name])
-        # in case bot wants to try to retrieve from a zone
-        for name in RET_NAMES:
-            inputList.append(collision_types[name])
         
         # add zones it is in (may need to be removed)
         #for shape, contacts in zones:
@@ -317,8 +342,8 @@ class Bot(object):
 
     def SaveReward(self):# tested
         """save net score gain as reward"""
-        self.teamScores.append(self.score.val - self.prev)
-        self.prev = self.score.val
+        self.teamScores.append(self.score.val - self.enemyScore.val - self.prev)
+        self.prev = self.score.val - self.enemyScore.val
 
     def CalculateReward(self, timeStep):# tested
         minTime = math.ceil(timeStep)
@@ -331,7 +356,7 @@ class Bot(object):
         self.rewards = []
         numInputs = len(self.inputs)
         for i in range(len(self.inputs)):
-            self.rewards.append(self.CalculateReward(i / NUM_STEPS) + CORRECTION)
+            self.rewards.append(self.CalculateReward(i / NUM_STEPS))
 
     def CleanUp(self):
         self.context.objects.pop(self.shape._get_shapeid())

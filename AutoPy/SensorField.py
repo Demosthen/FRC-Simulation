@@ -41,4 +41,4 @@ class SensorField(object):
 
     def CleanUp(self):
         self.context.objects.pop(self.shape._get_shapeid())
-        self.context.space.remove(self.shape, self.body)
+        self.context.space.remove(self.shape, self.body, self.pivotConstraint, self.gearJoint)

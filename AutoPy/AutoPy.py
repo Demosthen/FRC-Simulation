@@ -38,7 +38,8 @@ if __name__ == "__main__":
         # run stuff
         nw.sess.run(nw.training_init_op,feed_dict = {nw.inputHolder : data[0],
                                                      nw.actionHolder : data[1],
-                                                     nw.rewardHolder : data[2]})
+                                                     nw.rewardHolder : data[2],
+                                                     })
         #i = 0
         for i in range(epochs):
         #while True:
@@ -46,6 +47,9 @@ if __name__ == "__main__":
                 l = nw.sess.run(nw.totalLoss)
                 nw.sess.run(nw.optimizer)
                 counter += 1
+                merge = tf.summary.merge_all()
+                summary = nw.sess.run(merge)
+                nw.writer.add_summary(summary,i)
                 if i % 25 == 0:
                     print("Epoch: {}, loss: {}".format(i,str(np.average(l))))
             except tf.errors.OutOfRangeError as o:
