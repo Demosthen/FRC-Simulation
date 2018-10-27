@@ -295,6 +295,8 @@ def SimFn(pipe):
         #main loop
         while(True):
             cue = pipe.recv()
+            if context.count > 0:
+                nw.saver.restore(nw.sess, nw.SAVE_PATH)
             context.count += 1 #number of simulations done
             prevRed = 0
             prevBlue = 0
@@ -369,7 +371,8 @@ def SimFn(pipe):
                     for bot in bots:
                         bot.immobileTime -= dt
                 
-
+                latestIdx = -1
+                latestValue = -1
                 #for i in range(NUM_BOTS):
                     #pipes[i][0].send(bots[i].inputs[-15:])
                     #feedForward.eval(feed_dict = {placeholder: input}, session = sess)[0]
@@ -392,10 +395,12 @@ def SimFn(pipe):
                         batchOutput = nw.probs.eval(feed_dict = {nw.next_element["input"]: [batchInput]}, session = nw.sess)[0]
                         bots[i].RNNInputs.append(batchInput)
                         output = batchOutput
+                        latestIdx = np.argmax(output)
+                        latestVal = output
                         bots[i].SaveLogits(output.tolist())
                         #idx = np.argmax(output)
                         if np.random.uniform() >= 0:#1-((context.count)/NUM_GAMES):
-                            idx = np.argmax(output)
+                            idx = latestIdx
                             #idx = np.random.choice(range(0,OUTPUT_SIZE),p = output)
                         else:
                             # default probability distribution, such that 1/3 of the time it moves, 1/3 it picks stuff up, 1/3 it drops off
@@ -463,7 +468,7 @@ def SimFn(pipe):
                         # update infowindow
                         infoPipe[0].send(infoAction)
                         pass
-                    print(str(context.gameTime) + " " + str(context.redScore.val) + " " + str(context.blueScore.val) +" " + str(context.count))
+                    print(str(context.gameTime) + " " + str(context.redScore.val) + " " + str(context.blueScore.val) +" " + str(context.count) + " " + str(latestIdx) + " " + str(latestVal))
                     #save scores
                     for bot in bots:
                         bot.SaveReward()

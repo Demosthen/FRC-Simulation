@@ -47,8 +47,7 @@ if __name__ == "__main__":
                 l = nw.sess.run(nw.totalLoss)
                 nw.sess.run(nw.optimizer)
                 counter += 1
-                merge = tf.summary.merge_all()
-                summary = nw.sess.run(merge)
+                summary = nw.sess.run(nw.merge)
                 nw.writer.add_summary(summary,i)
                 if i % 25 == 0:
                     print("Epoch: {}, loss: {}".format(i,str(np.average(l))))
