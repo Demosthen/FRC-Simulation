@@ -25,6 +25,7 @@ def model_fn(features,mode):
     dense5 = tf.layers.dense(inputs = dense4, units = 100, activation = tf.nn.leaky_relu, kernel_initializer = tf.initializers.glorot_normal())
     output = tf.layers.dense(inputs = dense5, units = OUTPUT_SIZE, activation = tf.identity, kernel_regularizer = tf.contrib.layers.l2_regularizer(0.01), kernel_initializer = tf.initializers.glorot_normal())
     tf.summary.histogram("output", output)
+    #ayyyyyoooooooo
     return output
 def normalize(data):
     mean, std = tf.nn.moments(data,[-1])
