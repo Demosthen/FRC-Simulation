@@ -83,8 +83,9 @@ class Bot(object):
         self.teamScores =[]
         self.objectList = []
         self.rets = defaultdict(lambda:[])
-        self.prev = 0 # team's score 1 second ago
+        self.prevScore = 0 # team's score 1 second ago
         self.numObstacles = 0
+        self.prevEnemyScore = 0
 
     def KillLateralMvmt(self):
         self.control.velocity -= self.body.velocity.projection(Vec2d(math.cos(self.body.angle), math.sin(self.body.angle)).perpendicular())
@@ -342,9 +343,9 @@ class Bot(object):
 
     def SaveReward(self):# tested
         """save net score gain as reward"""
-        self.teamScores.append(self.score.val - self.prev)
-        self.prev = self.score.val
-
+        self.teamScores.append(math.pow(2,int(self.prevScore <= 0)*2-1)*self.prevScore - self.prevEnemyScore)
+        self.prevScore = self.score.val -self.prevScore
+        self.prevEnemyScore = self.enemyScore.val - self.prevEnemyScore
     def CalculateReward(self, timeStep):# tested
         minTime = math.ceil(timeStep)
         reward = 0

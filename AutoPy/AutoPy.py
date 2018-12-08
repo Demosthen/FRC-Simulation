@@ -17,7 +17,7 @@ if __name__ == "__main__":
         simPipes.append(mp.Pipe())
         simProcs.append(mp.Process(target = Sim.SimFn, name = SIM_PROC_NAME, args = [simPipes[i][1]], daemon = False))
         simProcs[i].start()
-    for j in range(NUM_GAMES):
+    for j in range(NUM_GAMES-START):
         data = [],[],[],[] #[inputs, actions, rewards, logits][data]
         for i in range(NUM_SIMS):
             simPipes[i][0].send(True)

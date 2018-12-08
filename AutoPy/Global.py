@@ -27,7 +27,7 @@ GAME_DURATION = 110 #2 mins 15 secs (teleop duration) minus 25 secs for climb
 SCALE_POINTS = 1 # per sec
 SWITCH_POINTS = 1
 VAULT_POINTS = 5# one time
-FOUL_POINTS = 0
+FOUL_POINTS = 1
 TECH_FOUL_POINTS = 25
 collision_types = {BOT_NAME:1,
                    PICKUP_NAME:2,
@@ -71,9 +71,10 @@ BOT_START_POS = [Vec2d((3,5)),
                  Vec2d(FIELD_LENGTH-1,(FIELD_WIDTH+1)/2),
                  Vec2d(FIELD_LENGTH-1,FIELD_WIDTH-3)]
 
-MODE = "DRAW"#SIM or DRAW
-RESTORE_MODEL = True # 90 0.9
+MODE = "SIM"#SIM or DRAW
+RESTORE_MODEL = False # 90 0.9
 EPSILON = 0.9 # 0 = max exploitation, 1 = max exploration
-NUM_SIMS = 1
-NUM_GAMES = 500
+START = 0
+NUM_SIMS = 4
+NUM_GAMES = 1000
 # add RET_DIMS variable later

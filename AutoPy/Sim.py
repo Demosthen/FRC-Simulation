@@ -399,7 +399,7 @@ def SimFn(pipe):
                         latestVal = output
                         bots[i].SaveLogits(output.tolist())
                         #idx = np.argmax(output)
-                        if np.random.uniform() >= 0:#1-((context.count)/NUM_GAMES):
+                        if np.random.uniform() >= 1-((START+context.count)/NUM_GAMES):
                             idx = latestIdx
                             #idx = np.random.choice(range(0,OUTPUT_SIZE),p = output)
                         else:
@@ -468,7 +468,7 @@ def SimFn(pipe):
                         # update infowindow
                         infoPipe[0].send(infoAction)
                         pass
-                    print(str(context.gameTime) + " " + str(context.redScore.val) + " " + str(context.blueScore.val) +" " + str(context.count) + " " + str(latestIdx) + " " + str(latestVal))
+                    print(str(context.gameTime) + " " + str(context.redScore.val) + " " + str(context.blueScore.val) +" " + str(context.count) + " " + str(latestIdx) + " " + str(action) + " " + str(latestVal))
                     #save scores
                     for bot in bots:
                         bot.SaveReward()
