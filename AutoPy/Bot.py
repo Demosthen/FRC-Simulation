@@ -343,9 +343,9 @@ class Bot(object):
 
     def SaveReward(self):# tested
         """save net score gain as reward"""
-        self.teamScores.append(math.pow(2,int(self.prevScore <= 0)*2-1)*self.prevScore - self.prevEnemyScore)
-        self.prevScore = self.score.val -self.prevScore
-        self.prevEnemyScore = self.enemyScore.val - self.prevEnemyScore
+        self.teamScores.append(self.score.val - self.prevScore)
+        self.prevScore = self.score.val
+
     def CalculateReward(self, timeStep):# tested
         minTime = math.ceil(timeStep)
         reward = 0

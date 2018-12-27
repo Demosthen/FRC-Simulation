@@ -76,5 +76,5 @@ RESTORE_MODEL = False # 90 0.9
 EPSILON = 0.9 # 0 = max exploitation, 1 = max exploration
 START = 0
 NUM_SIMS = 4
-NUM_GAMES = 1000
+NUM_GAMES = 4000
 # add RET_DIMS variable later

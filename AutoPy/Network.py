@@ -10,22 +10,14 @@ def model_fn(features,mode):
     
     # put in multirnncells and figure out how to train them
     # randomly sample from experience buffer as input
-    #input_layer = tf.reshape(features, [BATCH_SIZE,SEQ_LEN,50])
-    #bn = tf.layers.batch_normalization(input_layer)
     input_layer = features #tf.split(features, [SEQ_LEN],1)
     lstm = tf.nn.rnn_cell.LSTMCell(100,activation = tf.nn.leaky_relu,reuse = tf.AUTO_REUSE)
-    #cell = tf.contrib.rnn.MultiRNNCell([lstm, ])
-    #init_State = cell.zero_state(BATCH_SIZE, tf.float32)
-    #lstmOut, state = tf.nn.static_rnn(lstm,input_layer,dtype = tf.float32,sequence_length = tf.placeholder(tf.int32,[None]))
-    #lstmOut, state = tf.nn.dynamic_rnn(lstm,input_layer, dtype = tf.float32)
-    #dense2 = tf.layers.dense(inputs = lstmOut[:, -1], units = 200, activation = tf.nn.leaky_relu)
-    dense2 = tf.layers.dense(inputs = input_layer[:,-1], units = 100, activation = tf.nn.leaky_relu, kernel_initializer = tf.initializers.glorot_normal())
+    dense2 = tf.layers.dense(inputs = input_layer[:,-1], units = 100, activation = tf.nn.leaky_relu, kernel_initializer = tf.initializers.glorot_normal())#currently not used
     dense3 = tf.layers.dense(inputs = dense2, units = 100, activation = tf.nn.leaky_relu, kernel_initializer = tf.initializers.glorot_normal())
     dense4 = tf.layers.dense(inputs = dense3, units = 100, activation = tf.nn.leaky_relu, kernel_initializer = tf.initializers.glorot_normal())
     dense5 = tf.layers.dense(inputs = dense4, units = 100, activation = tf.nn.leaky_relu, kernel_initializer = tf.initializers.glorot_normal())
-    output = tf.layers.dense(inputs = dense5, units = OUTPUT_SIZE, activation = tf.identity, kernel_regularizer = tf.contrib.layers.l2_regularizer(0.01), kernel_initializer = tf.initializers.glorot_normal())
+    output = tf.layers.dense(inputs = dense5, units = OUTPUT_SIZE, kernel_regularizer = tf.contrib.layers.l2_regularizer(0.01), kernel_initializer = tf.initializers.glorot_normal())
     tf.summary.histogram("output", output)
-    #ayyyyyoooooooo
     return output
 def normalize(data):
     mean, std = tf.nn.moments(data,[-1])
@@ -56,14 +48,14 @@ iterator = tf.data.Iterator.from_structure(dataSet.output_types,dataSet.output_s
 next_element = iterator.get_next()
 training_init_op = iterator.make_initializer(dataSet)
 avg = tf.reduce_mean(next_element["reward"])
-#Logits = model_fn(next_element["input"],mode = tf.estimator.ModeKeys.TRAIN)
 Logits = model_fn(next_element["input"], mode = tf.estimator.ModeKeys.TRAIN)
 probs = Logits
 min = tf.reduce_min(Logits)
 normalized = tf.div(Logits-min,tf.subtract(tf.reduce_max(Logits),min))
 labels = tf.one_hot(next_element["action"],OUTPUT_SIZE)
 labels = tf.reshape(labels,shape = [-1, OUTPUT_SIZE])
-loss = tf.losses.log_loss(labels, tf.nn.softmax(Logits)) * next_element["reward"]#tf.losses.sigmoid_cross_entropy(labels * next_element["reward"],Logits)#-tf.losses.softmax_cross_entropy(labels,normalized + 0.01) * next_element["reward"]
+loss = tf.losses.mean_squared_error(labels * next_element["reward"],Logits)
+#loss = tf.losses.log_loss(labels, tf.nn.softmax(Logits)) * next_element["reward"]#tf.losses.sigmoid_cross_entropy(labels * next_element["reward"],Logits)#-tf.losses.softmax_cross_entropy(labels,normalized + 0.01) * next_element["reward"]
 #loss = -tf.reduce_sum(tf.log(normalized * next_element["reward"]) * labels)#tf.losses.mean_squared_error((next_element["reward"]-avg) * labels + Logits, Logits)
 #mask = loss == 0
 #loss = -tf.log(tf.where(mask, x = loss, y = CORRECTION))

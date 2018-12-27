@@ -57,7 +57,6 @@ if __name__ == "__main__":
                 print(counter)
         save_path = nw.saver.save(nw.sess, nw.SAVE_PATH)
         print("Done saving at "+str(save_path))
-    # do training here pls
     for i in range(NUM_SIMS):
         simProcs[i].join()
     nw.sess.close()
@@ -66,5 +65,4 @@ if __name__ == "__main__":
     #test
     #better to undestimate visual field bc convnet can mislabel at edges
     #TODO:
-    #some training done already, should evaluate w/ DRAW
-    #try new conda package version of tensorflow
+    #use pool to do tensorflow operations?
